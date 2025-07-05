@@ -7,6 +7,7 @@ import { makeMove } from "../nomalos/gameState";
 import { calculateElo } from "../utils/eloUtils";
 import { Space } from "../nomalos/space";
 import rateLimit from "express-rate-limit";
+import { io } from "../index"; // <-- Socket.IO instance
 
 const router = Router();
 
@@ -111,6 +112,9 @@ router.post("/:id/move", moveLimiter, async (req: Request, res: Response) => {
     game.state = newState;
     game.updatedAt = new Date();
 
+    // Emit game update to all clients in this game room
+    io.to(game.id).emit("game_update", { gameId: game.id, game });
+
     // --- 1. Draw Handling ---
     let isDraw = false;
     let winnerId: string | null = null;
@@ -124,6 +128,9 @@ router.post("/:id/move", moveLimiter, async (req: Request, res: Response) => {
             winnerId = null;
         }
         game.winner = winnerId;
+
+        // Emit game over event
+        io.to(game.id).emit("game_over", { gameId: game.id, winner: winnerId, isDraw });
 
         // --- ELO and stats update (for 2-player games) ---
         if (game.players.length === 2) {
@@ -233,11 +240,8 @@ router.post("/:id/forfeit", async (req: Request, res: Response) => {
     game.state.winner = winnerId === game.blackPlayer ? Space.Black : Space.White;
     game.winner = winnerId;
 
-    // Reuse the end-of-game logic by calling the move endpoint logic
-    req.body.row = null;
-    req.body.col = null;
-    req.body.userId = winnerId; // fudge to pass turn check
-    // You could refactor the end-of-game logic into a helper to avoid duplication
+    // Emit forfeit event
+    io.to(game.id).emit("game_forfeit", { gameId: game.id, winner: winnerId });
 
     // ELO and stats update (for 2-player games)
     if (game.players.length === 2 && winnerId) {
@@ -296,11 +300,6 @@ router.post("/:id/forfeit", async (req: Request, res: Response) => {
     // Reload the finished game from DB for response
     const finishedGame = await GameRepo.getGameById(game.id);
     res.json({ game: finishedGame, message: "Game forfeited" });
-});
-
-router.get("/user/:userId", async (req: Request, res: Response) => {
-    const games = await GameRepo.getGamesByUserId(req.params.userId);
-    res.json(games);
 });
 
 export default router;

@@ -1,8 +1,20 @@
 import { Router, Request, Response } from "express";
 import * as UserRepo from "../database/users";
+import * as GameRepo from "../database/games";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { authenticateJWT } from "../middleware/jwt";
 
 const router = Router();
+
+const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
+
+function sanitizeUser(user: any) {
+    if (!user) return user;
+    const { passwordHash, ...safeUser } = user;
+    return safeUser;
+}
+
 
 /**
  * Login or register a user by username.
@@ -47,7 +59,13 @@ router.post("/login", async (req: Request, res: Response) => {
         };
         const id = await UserRepo.createUser(newUser);
         user = await UserRepo.getUserById(id.toString());
-        res.status(201).json({ user, message: "Account created and logged in" });
+        if (!user) {
+            res.status(500).json({ error: "Failed to create user" });
+            return;
+        }
+        // Issue JWT
+        const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: "7d" });
+        res.status(201).json({ user: sanitizeUser(user), token, message: "Account created and logged in" });
         return;
     }
 
@@ -68,14 +86,17 @@ router.post("/login", async (req: Request, res: Response) => {
     // Update lastSeen
     await UserRepo.updateUser(user.id, { lastSeen: new Date() });
 
-    res.json({ user, message: "Logged in" });
+    // Issue JWT
+    const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: "7d" });
+
+    res.json({ user: sanitizeUser(user), token, message: "Logged in" });
 });
 
 /**
  * Set or update a password for a user.
  * Requires username and password.
  */
-router.post("/set-password", async (req: Request, res: Response) => {
+router.post("/set-password", authenticateJWT, async (req: Request, res: Response) => {
     const { username, password } = req.body;
     if (!username || !password) {
         res.status(400).json({ error: "Username and password are required" });
@@ -97,13 +118,25 @@ router.post("/set-password", async (req: Request, res: Response) => {
 /**
  * Get user by username
  */
-router.get("/:username", async (req: Request, res: Response) => {
+router.get("/:username", authenticateJWT, async (req: Request, res: Response) => {
     const user = await UserRepo.getUserByUsername(req.params.username);
     if (!user) {
         res.status(404).json({ error: "User not found" });
         return;
     }
     res.json(user);
+});
+
+// Get all games for a user (protected)
+router.get("/games/:userId", authenticateJWT, async (req: Request, res: Response) => {
+    const userId = req.params.userId;
+    const games = await GameRepo.getGamesByUserId(userId);
+    res.json(games);
+});
+
+router.post("/logout", authenticateJWT, async (req: Request, res: Response) => {
+    // Optionally, you can implement token blacklisting here if needed. REDIS
+    res.json({ message: "Logged out. Please remove your token on the client." });
 });
 
 export default router;
