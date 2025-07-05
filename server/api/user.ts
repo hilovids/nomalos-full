@@ -23,9 +23,27 @@ router.post("/login", async (req: Request, res: Response) => {
         // Create new user
         const newUser = {
             username,
-            rating: 1500,
+            shortRating: 1000,
+            longRating: 1000,
             lastSeen: new Date(),
-            stats: { gamesPlayed: 0, gamesWon: 0, gamesLost: 0, gamesDrawn: 0 }
+            shortStats: {
+                gamesPlayed: 0,
+                gamesWon: 0,
+                gamesLost: 0,
+                gamesDrawn: 0
+            },
+            longStats: {
+                gamesPlayed: 0,
+                gamesWon: 0,
+                gamesLost: 0,
+                gamesDrawn: 0
+            },
+            combinedStats: {
+                gamesPlayed: 0,
+                gamesWon: 0,
+                gamesLost: 0,
+                gamesDrawn: 0
+            }
         };
         const id = await UserRepo.createUser(newUser);
         user = await UserRepo.getUserById(id.toString());

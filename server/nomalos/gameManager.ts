@@ -2,10 +2,11 @@ import { Game, GameMode, GameTiming } from "./game";
 import { createGameState } from "./gameState";
 import { v4 as uuidv4 } from "uuid";
 
-// In-memory storage for active games
 const activeGames = new Map<string, Game>();
 
 export const GameManager = {
+    // Only manages in-memory games and game lifecycle logic
+
     createGame: (mode: GameMode, timing: GameTiming, players: string[], playerUsernames: string[], size: number = 11): Game => {
         const id = uuidv4();
         const now = new Date();
@@ -15,6 +16,8 @@ export const GameManager = {
             timing,
             players,
             playerUsernames,
+            blackPlayer: players[0],
+            whitePlayer: players[1],
             state: createGameState(size),
             createdAt: now,
             updatedAt: now,
@@ -24,8 +27,8 @@ export const GameManager = {
         return game;
     },
 
-    getGame: (id: string): Game | undefined => {
-        return activeGames.get(id);
+    getGame: (id: string): Game | null => {
+        return activeGames.get(id) || null;
     },
 
     updateGame: (id: string, game: Game): void => {
@@ -39,5 +42,5 @@ export const GameManager = {
 
     listGames: (): Game[] => {
         return Array.from(activeGames.values());
-    },
+    }
 };
