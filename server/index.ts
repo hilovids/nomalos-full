@@ -54,7 +54,10 @@ connectToMongo().then(() => {
 
     // Socket.IO connection handler
     io.on("connection", (socket) => {
+        console.log(`[SOCKET] Connected: ${socket.id}`);
+
         socket.on("find_match", async ({ userId, username, rating, timing, size }) => {
+            console.log(`[SOCKET] find_match from ${socket.id} (${username}, rating: ${rating}, timing: ${timing}, size: ${size})`);
             // Try to find a match
             const matchIndex = matchmakingQueue.findIndex(
                 (p) =>
@@ -72,6 +75,8 @@ connectToMongo().then(() => {
                 const game = GameManager.createGame("multiplayer", timing, players, playerUsernames, size);
                 await GameRepo.createGame(game);
 
+                console.log(`[SOCKET] Match found: ${username} (${socket.id}) vs ${opponent.username} (${opponent.socketId}) -> Game ID: ${game.id}`);
+
                 // Notify both players
                 io.to(socket.id).emit("match_found", { gameId: game.id, opponent: opponent.username });
                 io.to(opponent.socketId).emit("match_found", { gameId: game.id, opponent: username });
@@ -83,19 +88,26 @@ connectToMongo().then(() => {
                 // Add to queue
                 matchmakingQueue.push({ userId, username, rating, timing, size, socketId: socket.id });
                 socket.emit("waiting_for_match");
+                console.log(`[SOCKET] Added to matchmaking queue: ${username} (${socket.id})`);
             }
         });
 
         socket.on("cancel_matchmaking", () => {
-            // Remove from queue if user cancels
             const idx = matchmakingQueue.findIndex((p) => p.socketId === socket.id);
-            if (idx !== -1) matchmakingQueue.splice(idx, 1);
+            if (idx !== -1) {
+                const removed = matchmakingQueue.splice(idx, 1)[0];
+                console.log(`[SOCKET] cancel_matchmaking: Removed ${removed.username} (${socket.id}) from queue`);
+            }
         });
 
         socket.on("disconnect", () => {
-            // Remove from queue on disconnect
             const idx = matchmakingQueue.findIndex((p) => p.socketId === socket.id);
-            if (idx !== -1) matchmakingQueue.splice(idx, 1);
+            if (idx !== -1) {
+                const removed = matchmakingQueue.splice(idx, 1)[0];
+                console.log(`[SOCKET] Disconnected: Removed ${removed.username} (${socket.id}) from queue`);
+            } else {
+                console.log(`[SOCKET] Disconnected: ${socket.id}`);
+            }
         });
     });
 

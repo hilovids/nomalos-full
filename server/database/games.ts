@@ -2,7 +2,7 @@ import { ObjectId } from "mongodb";
 import { getDb } from "./mongodb";
 import { Game } from "../nomalos/game";
 
-const COLLECTION = "games";
+const COLLECTION = "Games";
 
 // Create a new game document
 export async function createGame(game: Game) {

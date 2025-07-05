@@ -60,17 +60,6 @@ export default function NewGamePage() {
           <option value="long">Long</option>
         </select>
       </label>
-      <label>
-        Board Size:
-        <input
-          className="border p-2 rounded w-full"
-          type="number"
-          min={5}
-          max={19}
-          value={size}
-          onChange={e => setSize(Number(e.target.value))}
-        />
-      </label>
       <button className="bg-blue-600 text-white rounded p-2">Create Game</button>
       {error && <div className="text-red-600">{error}</div>}
     </form>
