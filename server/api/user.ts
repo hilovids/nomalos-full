@@ -4,17 +4,17 @@ import * as GameRepo from "../database/games";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { authenticateJWT } from "../middleware/jwt";
+import { GameTiming } from "../nomalos/game";
 
 const router = Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
 
-function sanitizeUser(user: any) {
+export function sanitizeUser(user: any) {
     if (!user) return user;
     const { passwordHash, ...safeUser } = user;
     return safeUser;
 }
-
 
 /**
  * Login or register a user by username.
@@ -131,15 +131,15 @@ router.post("/set-password", authenticateJWT, async (req: Request, res: Response
 });
 
 /**
- * Get user by username
+ * Get user by userId
  */
-router.get("/:username", authenticateJWT, async (req: Request, res: Response) => {
-    const user = await UserRepo.getUserByUsername(req.params.username);
+router.get("/:userId", authenticateJWT, async (req: Request, res: Response) => {
+    const user = await UserRepo.getUserById(req.params.userId);
     if (!user) {
         res.status(404).json({ error: "User not found" });
         return;
     }
-    res.json(user);
+    res.json(sanitizeUser(user));
 });
 
 // Get all games for a user (protected)
@@ -152,6 +152,16 @@ router.get("/games/:userId", authenticateJWT, async (req: Request, res: Response
 router.post("/logout", authenticateJWT, async (req: Request, res: Response) => {
     // Optionally, you can implement token blacklisting here if needed. REDIS
     res.json({ message: "Logged out. Please remove your token on the client." });
+});
+
+router.get("/leaderboard/:gameTiming", authenticateJWT, async (req: Request, res: Response) => {
+    const gameTiming = req.params.gameTiming || "short"; // Default to short timing if not specified
+    if (!["short", "long"].includes(gameTiming)) {
+        res.status(400).json({ error: "Invalid game timing" });
+        return;
+    }
+    const leaderboard = await UserRepo.getLeaderboard(gameTiming as GameTiming);
+    res.status(200).json(leaderboard);
 });
 
 export default router;

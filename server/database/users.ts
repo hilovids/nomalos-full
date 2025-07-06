@@ -1,6 +1,8 @@
 import { ObjectId } from "mongodb";
 import { getDb } from "./mongodb";
 import { User } from "../nomalos/user";
+import { GameTiming } from "../nomalos/game";
+import { sanitizeUser } from "../api/user";
 
 const COLLECTION = "Users";
 
@@ -21,8 +23,19 @@ export async function getUserById(id: string): Promise<User | null> {
     const db = getDb();
     const user = await db.collection<User>(COLLECTION).findOne({ _id: new ObjectId(id) });
     if (!user) return null;
-    // Convert _id to id string for consistency
     return { ...user, id: user._id?.toString() };
+}
+
+export async function getLeaderboard(gameTiming: GameTiming): Promise<User[]> {
+    const db = getDb();
+    const sortField = gameTiming === "short" ? "shortRating" : "longRating";
+    const users = await db
+        .collection<User>(COLLECTION)
+        .find()
+        .sort({ [sortField]: -1 })
+        .limit(100)
+        .toArray();
+    return users.map(user => ({ ...user, id: user._id?.toString() })).map(sanitizeUser);
 }
 
 // Get a user by username

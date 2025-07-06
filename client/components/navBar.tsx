@@ -45,6 +45,9 @@ export default function NavBar() {
             <Link href="/find-game" className="text-[#e0e7ef] hover:text-white font-medium transition-colors">
               Find Game
             </Link>
+            <Link href="/leaderboard" className="text-[#e0e7ef] hover:text-white font-medium transition-colors">
+              Leaderboard
+            </Link>
             <Link href="/profile" className="text-[#e0e7ef] hover:text-white font-medium transition-colors">
               Profile
             </Link>

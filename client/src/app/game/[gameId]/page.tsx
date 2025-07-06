@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getSocket } from "@/lib/socket";
+import Link from "next/link";
 
 export default function GamePage() {
     const { gameId } = useParams();
@@ -604,7 +605,16 @@ export default function GamePage() {
                         <circle cx="12" cy="12" r="10" fill="#22272b" stroke="black" strokeWidth="2" />
                     </svg>
                     <span className="font-semibold">
-                        {(game?.playerUsernames && game?.playerUsernames[0]) || "Black"}
+                        {game?.playerUsernames && game?.players ? (
+                            <Link
+                                href={`/profile/${game.players[0]}`}
+                                className="text-white hover:underline"
+                            >
+                                {game.playerUsernames[0]}
+                            </Link>
+                        ) : (
+                            (game?.playerUsernames && game?.playerUsernames[0]) || "Black"
+                        )}
                         {user && user.id === game?.players?.[0] && " (You)"}
                         {game?.players?.[0] ? (
                             <span className="text-xs text-gray-400 ml-2">
@@ -618,7 +628,16 @@ export default function GamePage() {
                         <circle cx="12" cy="12" r="10" fill="white" stroke="#888" strokeWidth="2" />
                     </svg>
                     <span className="font-semibold">
-                        {(game?.playerUsernames && game?.playerUsernames[1]) || "White"}
+                        {game?.playerUsernames && game?.players ? (
+                            <Link
+                                href={`/profile/${game.players[1]}`}
+                                className="text-white hover:underline"
+                            >
+                                {game.playerUsernames[1]}
+                            </Link>
+                        ) : (
+                            (game?.playerUsernames && game?.playerUsernames[1]) || "White"
+                        )}
                         {user && user.id === game?.players?.[1] && " (You)"}
                         {game?.players?.[1] ? (
                             <span className="text-xs text-gray-400 ml-2">

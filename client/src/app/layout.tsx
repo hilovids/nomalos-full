@@ -2,6 +2,7 @@ import './globals.css';
 import NavBar from '../../components/navBar';
 import RequireAuth from '../../components/requireAuth';
 import Footer from '../../components/footer';
+import ScrollToTopButton from '../../components/scrollButton';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -14,6 +15,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <RequireAuth>
           {children}
         </RequireAuth>
+        <ScrollToTopButton />
         <Footer />
       </body>
     </html>
