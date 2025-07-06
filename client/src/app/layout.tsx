@@ -3,6 +3,7 @@ import NavBar from '../../components/navBar';
 import RequireAuth from '../../components/requireAuth';
 import Footer from '../../components/footer';
 import ScrollToTopButton from '../../components/scrollButton';
+import MobileBanner from '../../components/mobileBanner';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -17,6 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </RequireAuth>
         <ScrollToTopButton />
         <Footer />
+        <MobileBanner />
       </body>
     </html>
   );

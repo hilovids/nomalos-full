@@ -48,6 +48,7 @@ export default function Home() {
             <li>Friends and Custom Games</li>
             <li>Improved Mobile Designs</li>
             <li>Animations and more...</li>
+            <li>In Game Chat</li>
           </ol>
         </section>
       </main>

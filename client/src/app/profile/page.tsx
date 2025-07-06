@@ -38,7 +38,7 @@ export default function ProfilePage() {
   // Fetch up-to-date user info from API
   useEffect(() => {
     if (!user?.username || !token) return;
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/${user.username}`, {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/${user.id}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -190,13 +190,43 @@ export default function ProfilePage() {
                     <td className="py-2 px-2 flex flex-col gap-1">
                       <span className={`flex items-center gap-2 ${userIsBlack ? "font-bold text-white" : "text-gray-300"}`}>
                         <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#22272b" stroke="black" strokeWidth="2" /></svg>
-                        {game.playerUsernames?.[0] || "Black"}
-                        {userIsBlack && <span className="ml-1 text-xs bg-green-700 text-white px-2 py-0.5 rounded">You</span>}
+                        {userIsBlack ? (
+                          <>
+                            {game.playerUsernames?.[0] || "Black"}
+                            <span className="ml-1 text-xs bg-green-700 text-white px-2 py-0.5 rounded">You</span>
+                          </>
+                        ) : (
+                          game.players?.[0] ? (
+                            <Link
+                              href={`/profile/${game.players[0]}`}
+                              className="hover:underline text-white"
+                            >
+                              {game.playerUsernames?.[0] || "Black"}
+                            </Link>
+                          ) : (
+                            game.playerUsernames?.[0] || "Black"
+                          )
+                        )}
                       </span>
                       <span className={`flex items-center gap-2 ${userIsWhite ? "font-bold text-white" : "text-gray-300"}`}>
                         <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="white" stroke="#888" strokeWidth="2" /></svg>
-                        {game.playerUsernames?.[1] || "White"}
-                        {userIsWhite && <span className="ml-1 text-xs bg-green-700 text-white px-2 py-0.5 rounded">You</span>}
+                        {userIsWhite ? (
+                          <>
+                            {game.playerUsernames?.[1] || "White"}
+                            <span className="ml-1 text-xs bg-green-700 text-white px-2 py-0.5 rounded">You</span>
+                          </>
+                        ) : (
+                          game.players?.[1] ? (
+                            <Link
+                              href={`/profile/${game.players[1]}`}
+                              className="hover:underline text-white"
+                            >
+                              {game.playerUsernames?.[1] || "White"}
+                            </Link>
+                          ) : (
+                            game.playerUsernames?.[1] || "White"
+                          )
+                        )}
                       </span>
                     </td>
                     <td className="py-2 px-2">

@@ -28,42 +28,42 @@ export default function ProfileIdPage() {
   const pageSize = 10;
 
   useEffect(() => {
-  setLoading(true);
-  setError("");
-  setUserInfo(null);
-  setGames([]);
-  if (!profileId) return;
+    setLoading(true);
+    setError("");
+    setUserInfo(null);
+    setGames([]);
+    if (!profileId) return;
 
-  const token = localStorage.getItem("token") || "";
+    const token = localStorage.getItem("token") || "";
 
-  // Fetch user info by ID with JWT
-  fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/${profileId}`, {
-    headers: { Authorization: `Bearer ${token}` }
-  })
-    .then(res => res.json())
-    .then(data => {
-      setUserInfo(data);
-      document.title = `${data.username}'s Profile | Nomalos`;
+    // Fetch user info by ID with JWT
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/${profileId}`, {
+      headers: { Authorization: `Bearer ${token}` }
     })
-    .catch(() => {
-      setUserInfo(null);
-      setError("Failed to load user info.");
-    });
+      .then(res => res.json())
+      .then(data => {
+        setUserInfo(data);
+        document.title = `${data.username}'s Profile | Nomalos`;
+      })
+      .catch(() => {
+        setUserInfo(null);
+        setError("Failed to load user info.");
+      });
 
-  // Fetch games for this user with JWT
-  fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/games/${profileId}`, {
-    headers: { Authorization: `Bearer ${token}` }
-  })
-    .then(res => res.json())
-    .then(data => {
-      setGames(Array.isArray(data) ? data : []);
-      setLoading(false);
+    // Fetch games for this user with JWT
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/games/${profileId}`, {
+      headers: { Authorization: `Bearer ${token}` }
     })
-    .catch(() => {
-      setError("Failed to load games.");
-      setLoading(false);
-    });
-}, [profileId]);
+      .then(res => res.json())
+      .then(data => {
+        setGames(Array.isArray(data) ? data : []);
+        setLoading(false);
+      })
+      .catch(() => {
+        setError("Failed to load games.");
+        setLoading(false);
+      });
+  }, [profileId]);
 
   const totalPages = Math.ceil(games.length / pageSize);
   const pagedGames = games.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -95,10 +95,10 @@ export default function ProfileIdPage() {
           </div>
           <div className="mt-4 sm:mt-0 sm:ml-4 flex-shrink-0">
             <Link
-              href="/new-game"
+              href="/find-game"
               className="bg-[#3fae49] hover:bg-[#2e8c36] text-white px-5 py-2 rounded font-semibold transition-colors"
             >
-              New Game
+              Find Game
             </Link>
           </div>
         </div>
@@ -189,13 +189,43 @@ export default function ProfileIdPage() {
                     <td className="py-2 px-2 flex flex-col gap-1">
                       <span className={`flex items-center gap-2 ${userIsBlack ? "font-bold text-white" : "text-gray-300"}`}>
                         <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#22272b" stroke="black" strokeWidth="2" /></svg>
-                        {game.playerUsernames?.[0] || "Black"}
-                        {userIsBlack && <span className="ml-1 text-xs bg-green-700 text-white px-2 py-0.5 rounded">User</span>}
+                        {userIsBlack ? (
+                          <>
+                            {game.playerUsernames?.[0] || "Black"}
+                            <span className="ml-1 text-xs bg-green-700 text-white px-2 py-0.5 rounded">User</span>
+                          </>
+                        ) : (
+                          game.players?.[0] ? (
+                            <Link
+                              href={`/profile/${game.players[0]}`}
+                              className="hover:underline text-white"
+                            >
+                              {game.playerUsernames?.[0] || "Black"}
+                            </Link>
+                          ) : (
+                            game.playerUsernames?.[0] || "Black"
+                          )
+                        )}
                       </span>
                       <span className={`flex items-center gap-2 ${userIsWhite ? "font-bold text-white" : "text-gray-300"}`}>
                         <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="white" stroke="#888" strokeWidth="2" /></svg>
-                        {game.playerUsernames?.[1] || "White"}
-                        {userIsWhite && <span className="ml-1 text-xs bg-green-700 text-white px-2 py-0.5 rounded">User</span>}
+                        {userIsWhite ? (
+                          <>
+                            {game.playerUsernames?.[1] || "White"}
+                            <span className="ml-1 text-xs bg-green-700 text-white px-2 py-0.5 rounded">User</span>
+                          </>
+                        ) : (
+                          game.players?.[1] ? (
+                            <Link
+                              href={`/profile/${game.players[1]}`}
+                              className="hover:underline text-white"
+                            >
+                              {game.playerUsernames?.[1] || "White"}
+                            </Link>
+                          ) : (
+                            game.playerUsernames?.[1] || "White"
+                          )
+                        )}
                       </span>
                     </td>
                     <td className="py-2 px-2">

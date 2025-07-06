@@ -5,6 +5,8 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { authenticateJWT } from "../middleware/jwt";
 import { GameTiming } from "../nomalos/game";
+import leoProfanity from "leo-profanity";
+
 
 const router = Router();
 
@@ -26,6 +28,15 @@ router.post("/login", async (req: Request, res: Response) => {
     const { username, password } = req.body;
     if (!username) {
         res.status(400).json({ error: "Username is required" });
+        return;
+    }
+
+    if (leoProfanity.check(username)) {
+        res.status(400).json({ error: "Username contains inappropriate language." });
+        return;
+    }
+    if (password && leoProfanity.check(password)) {
+        res.status(400).json({ error: "Password contains inappropriate language." });
         return;
     }
 
@@ -115,6 +126,16 @@ router.post("/set-password", authenticateJWT, async (req: Request, res: Response
     const { username, password } = req.body;
     if (!username || !password) {
         res.status(400).json({ error: "Username and password are required" });
+        return;
+    }
+
+    if (leoProfanity.check(username)) {
+        res.status(400).json({ error: "Username contains inappropriate language." });
+        return;
+    }
+
+    if (leoProfanity.check(password)) {
+        res.status(400).json({ error: "Password contains inappropriate language." });
         return;
     }
 
