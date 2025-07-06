@@ -18,7 +18,15 @@ export default function GamePage() {
     const router = useRouter();
     const [showForfeitConfirm, setShowForfeitConfirm] = useState(false);
     const [timeLeft, setTimeLeft] = useState<number | null>(null);
+    const thunkAudioRef = useRef<HTMLAudioElement | null>(null);
 
+    const [soundOn, setSoundOn] = useState<boolean>(() => {
+        if (typeof window !== "undefined") {
+            const stored = localStorage.getItem("soundOn");
+            return stored === null ? true : stored === "true";
+        }
+        return true;
+    });
 
     function handleForfeit() {
         if (!game || !user) return;
@@ -154,6 +162,21 @@ export default function GamePage() {
         });
     }
 
+    useEffect(() => {
+        if (!game || !soundOn) return;
+        // Only play sound if a move was just made (not on initial load)
+        if (!thunkAudioRef.current) {
+            thunkAudioRef.current = new Audio("/thunk.wav");
+        } else {
+            thunkAudioRef.current.currentTime = 0;
+        }
+        // Only play if moveList length increased
+        if (game.state?.moveList?.length > 0) {
+            thunkAudioRef.current.play().catch(() => { });
+        }
+        // eslint-disable-next-line
+    }, [game?.state?.moveList?.length]);
+
     function formatTime(ms: number) {
         if (game?.timing === "short") {
             const totalSeconds = Math.floor(ms / 1000);
@@ -175,6 +198,16 @@ export default function GamePage() {
                 return `0:${sec.toString().padStart(2, "0")}`;
             }
         }
+    }
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            localStorage.setItem("soundOn", soundOn ? "true" : "false");
+        }
+    }, [soundOn]);
+
+    function toggleSound() {
+        setSoundOn((prev) => !prev);
     }
 
     useEffect(() => {
@@ -302,6 +335,7 @@ export default function GamePage() {
         <div className="min-h-screen bg-[#232323] flex flex-col items-center py-8"
             style={{ paddingTop: "88px" }}
         >
+            <audio ref={thunkAudioRef} src="/thunk.wav" preload="auto" style={{ display: "none" }} />
 
             {/* Forfeit Confirmation Modal */}
             <Modal
@@ -354,6 +388,26 @@ export default function GamePage() {
                 </div>
             </Modal>
 
+            {/* Sound Toggle */}
+            <button
+                aria-label="Toggle sound"
+                onClick={toggleSound}
+                className="self-end mr-10 p-2 rounded-full bg-[#232323] hover:bg-[#333] transition"
+                title={soundOn ? "Mute sounds" : "Enable sounds"}
+            >
+                {soundOn ? (
+                    <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M5 14h2l3 3V7l-3 3H5v4z" />
+                        <path d="M15 9a3 3 0 010 6" />
+                        <path d="M17.5 6.5a7 7 0 010 11" />
+                    </svg>
+                ) : (
+                    <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M5 14h2l3 3V7l-3 3H5v4z" />
+                        <line x1="19" y1="5" x2="5" y2="19" stroke="red" strokeWidth="2" />
+                    </svg>
+                )}
+            </button>
 
             {/* Game Status */}
             <div className="mb-4 text-center">
@@ -401,6 +455,7 @@ export default function GamePage() {
                     <div className="text-orange-400 mt-1">Disconnected. Attempting to reconnect...</div>
                 )}
                 {error && <div className="text-red-400 mt-1">{error}</div>}
+
             </div>
 
             {/* Board + Side Panel */}

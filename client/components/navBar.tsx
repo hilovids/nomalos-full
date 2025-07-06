@@ -35,6 +35,9 @@ export default function NavBar() {
           style={{ display: "block", padding: 0, margin: 0 }}
           className="m-0 p-0"
         />
+        <span className="ml-2 px-2 py-0.5 rounded text-xs font-bold" style={{ color: "#fde047" }}>
+          beta
+        </span>
       </Link>
       <div className="flex items-center gap-4">
         {user ? (

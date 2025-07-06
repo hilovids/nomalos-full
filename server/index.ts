@@ -65,7 +65,7 @@ connectToMongo().then(() => {
             const matchIndex = matchmakingQueue.findIndex(
                 (p) =>
                     p.userId !== userId &&
-                    Math.abs(p.rating - rating) < 100 && // ELO difference threshold
+                    Math.abs(p.rating - rating) < 500 && // ELO difference threshold
                     p.timing === timing &&
                     p.size === size &&
                     p.rated === rated // Only match with same rated/unrated preference

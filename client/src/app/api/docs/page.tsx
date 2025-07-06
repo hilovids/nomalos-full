@@ -12,11 +12,11 @@ export default function ApiDocsPage() {
                 <h1 className="text-3xl font-bold mb-4 text-[#60a5fa]">Nomalos Public API</h1>
                 <p className="text-gray-200 mb-4">
                     Welcome to the Nomalos public API! All endpoints are available at:<br />
-                    <span className="font-mono text-blue-300">https://yourdomain.com/api/</span>
+                    <span className="font-mono text-blue-300">https://comingsoon.com/api/</span>
                 </p>
                 <h2 className="text-xl font-semibold text-white mb-2">Authentication</h2>
                 <p className="text-gray-300 mb-2">
-                    All endpoints require authentication. To properly authenticate, include your JWT token in the <span className="font-mono bg-[#232323] px-2 py-1 rounded">Authorization</span> header:
+                    All endpoints require authentication. To properly authenticate, include your API key in the <span className="font-mono bg-[#232323] px-2 py-1 rounded">Authorization</span> header:
                 </p>
                 <pre className="bg-[#232323] text-blue-200 rounded p-3 overflow-x-auto mb-2">
                     Authorization: Bearer &#123;your_token_here&#125;

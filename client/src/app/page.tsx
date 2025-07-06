@@ -40,6 +40,16 @@ export default function Home() {
             For more details on how to play, jump into a match or see the in-game rules.
           </p>
         </section>
+                <section className="mb-24 bg-[#181818] rounded-lg shadow p-6 w-full">
+          <h2 className="text-xl font-semibold mb-2 text-white">What's Next?</h2>
+          <ol className="list-decimal list-inside text-gray-200 mb-2">
+            <li>Spectating and Match Replays</li>
+            <li>Vs. Computer Matches</li>
+            <li>Friends and Custom Games</li>
+            <li>Improved Mobile Designs</li>
+            <li>Animations and more...</li>
+          </ol>
+        </section>
       </main>
     </div>
   );
