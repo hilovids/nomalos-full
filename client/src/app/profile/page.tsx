@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 function formatDate(dateStr: string) {
   const date = new Date(dateStr);
@@ -15,6 +16,25 @@ function getResult(game: any, user: any) {
   return { label: "Draw", color: "text-yellow-400", icon: "➖" };
 }
 
+function Modal({ open, onClose, children }: { open: boolean, onClose: () => void, children: React.ReactNode }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+      <div className="bg-[#232323] rounded-lg shadow-lg p-6 min-w-[320px] max-w-[90vw]">
+        {children}
+        <div className="flex justify-center mt-4">
+          <button
+            onClick={onClose}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-semibold shadow"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ProfilePage() {
   const [games, setGames] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +44,33 @@ export default function ProfilePage() {
   const [userInfo, setUserInfo] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const router = useRouter();
+
+  async function handleDeleteAccount() {
+    setDeleteError("");
+    if (!user?.id || !token) return;
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/${user.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setDeleteError(data.error || "Failed to delete account.");
+        return;
+      }
+      // Remove user/token from localStorage and redirect to home
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+      setShowDeleteModal(false);
+      router.push("/");
+      window.location.reload();
+    } catch {
+      setDeleteError("Failed to delete account.");
+    }
+  }
 
   useEffect(() => {
     const userData = localStorage.getItem("user");
@@ -83,7 +130,26 @@ export default function ProfilePage() {
   const longRating = userInfo?.longRating ?? 1200;
 
   return (
+
     <div className="max-w-4xl mx-auto mt-10" style={{ paddingTop: "40px" }}>
+      <Modal open={showDeleteModal} onClose={() => setShowDeleteModal(false)}>
+        <div className="text-center">
+          <div className="text-xl font-bold text-red-400 mb-2">Delete Account</div>
+          <div className="text-base text-gray-200 mb-4">
+            Are you sure you want to <span className="text-red-400 font-semibold">delete your account</span>?<br />
+            This action cannot be undone.
+          </div>
+          {deleteError && <div className="text-red-400 mb-2">{deleteError}</div>}
+          <div className="flex justify-center gap-4">
+            <button
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded font-semibold shadow"
+              onClick={handleDeleteAccount}
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </Modal>
       {/* User Info Section */}
       <section className="mb-8 bg-[#181818] rounded-lg shadow p-6 w-full">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between">
@@ -93,13 +159,19 @@ export default function ProfilePage() {
               {userInfo?.lastSeen && <>Last seen: {formatDate(userInfo.lastSeen)}</>}
             </div>
           </div>
-          <div className="mt-4 sm:mt-0 sm:ml-4 flex-shrink-0">
+          <div className="mt-4 sm:mt-0 sm:ml-4 flex-shrink-0 flex gap-2">
             <Link
               href="/find-game"
               className="bg-[#3fae49] hover:bg-[#2e8c36] text-white px-5 py-2 rounded font-semibold transition-colors"
             >
               Find Game
             </Link>
+            <button
+              className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded font-semibold transition-colors"
+              onClick={() => setShowDeleteModal(true)}
+            >
+              Delete Account
+            </button>
           </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-8 mt-4">

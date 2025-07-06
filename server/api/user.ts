@@ -31,6 +31,11 @@ router.post("/login", async (req: Request, res: Response) => {
         return;
     }
 
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        res.status(400).json({ error: "Username may only contain letters, numbers, and underscores." });
+        return;
+    }
+
     if (leoProfanity.check(username)) {
         res.status(400).json({ error: "Username contains inappropriate language." });
         return;
@@ -116,6 +121,17 @@ router.post("/login", async (req: Request, res: Response) => {
             }
         }
     }
+});
+
+router.delete("/:userId", authenticateJWT, async (req: Request, res: Response) => {
+    const userId = req.params.userId;
+    const user = await UserRepo.getUserById(userId);
+    if (!user) {
+        res.status(404).json({ error: "User not found" });
+        return;
+    }
+    await UserRepo.deleteUser(userId);
+    res.json({ message: "User deleted successfully" });
 });
 
 /**
