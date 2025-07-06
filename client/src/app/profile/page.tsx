@@ -123,10 +123,6 @@ export default function ProfilePage() {
                 <div className="text-lg font-bold text-red-400">{shortStats.gamesLost ?? 0}</div>
                 <div className="text-xs text-gray-400">Losses</div>
               </div>
-              <div>
-                <div className="text-lg font-bold text-yellow-400">{shortStats.gamesDrawn ?? 0}</div>
-                <div className="text-xs text-gray-400">Draws</div>
-              </div>
             </div>
           </div>
           {/* Divider */}
@@ -150,10 +146,6 @@ export default function ProfilePage() {
               <div>
                 <div className="text-lg font-bold text-red-400">{longStats.gamesLost ?? 0}</div>
                 <div className="text-xs text-gray-400">Losses</div>
-              </div>
-              <div>
-                <div className="text-lg font-bold text-yellow-400">{longStats.gamesDrawn ?? 0}</div>
-                <div className="text-xs text-gray-400">Draws</div>
               </div>
             </div>
           </div>

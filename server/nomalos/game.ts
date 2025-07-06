@@ -13,15 +13,23 @@ export type Game = {
     timing: GameTiming;
     players: string[]; // [blackPlayerId, whitePlayerId]
     playerUsernames: string[];
+    playerRatings: { [userId: string]: number };
     blackPlayer: string; // user ID for Black
     whitePlayer: string; // user ID for White
     state: GameState;
     createdAt: Date;
     updatedAt: Date;
     winner: string | null;
-    eloChanges?: { [userId: string]: number };
+    eloOutcomes?: {
+        [userId: string]: {
+            win: number;
+            loss: number;
+        }
+    },
+    eloChanges?: {
+        [userId: string]: number;
+    };
 };
-
 export type ArchivedGame = {
     id?: string;
     moveList: number[];

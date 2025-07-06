@@ -47,12 +47,14 @@ router.post("/", async (req: Request, res: Response) => {
             res.status(400).json({ error: "Invalid game creation parameters" });
             return;
         }
+        const playerRatings = req.body.playerRatings || { [players[0]]: 1200, [players[1]]: 1200 }; // Default ratings if not provided
         const game = await GameService.createGame(
             mode,
             timing,
             rated,
             players as [string, string],
             playerUsernames as [string, string],
+            playerRatings,
             size
         );
         res.status(201).json({ id: game.id, game });

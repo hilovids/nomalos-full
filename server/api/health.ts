@@ -18,6 +18,15 @@ export default function createHealthRouter(io: Server, matchmakingQueue: any[]) 
         });
     });
 
+    router.get("/online", (req: Request, res: Response) => {
+        // Count the number of connected sockets
+        const onlineCount = io.sockets.sockets.size;
+
+        res.json({
+            count: onlineCount
+        });
+    });
+
     // Remove (disconnect) a socket by ID
     router.post("/sockets/disconnect", async (req: Request, res: Response) => {
         const { socketId } = req.body;

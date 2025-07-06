@@ -57,6 +57,16 @@ connectToMongo().then(() => {
     io.on("connection", (socket) => {
         console.log(`[SOCKET] Connected: ${socket.id}`);
 
+        function emitOnlineCount() {
+            io.emit("online_count", io.engine.clientsCount);
+        }
+
+        emitOnlineCount();
+
+        socket.on("disconnect", () => {
+            emitOnlineCount();
+        });
+
         socket.on("find_match", async ({ userId, username, rating, timing, size, rated }) => {
             console.log(`[SOCKET] find_match from ${socket.id} (${username}, rating: ${rating}, timing: ${timing}, size: ${size}, rated: ${rated})`);
             // Try to find a match
@@ -74,12 +84,17 @@ connectToMongo().then(() => {
                 // Create game using GameService
                 const players: [string, string] = [userId, opponent.userId];
                 const playerUsernames: [string, string] = [username, opponent.username];
+                const playerRatings: { [userId: string]: number } = {
+                    [userId]: rating,
+                    [opponent.userId]: opponent.rating
+                };
                 const game = await GameService.createGame(
                     "multiplayer",
                     timing,
                     rated,
                     players,
                     playerUsernames,
+                    playerRatings,
                     size
                 );
                 console.log(`[SOCKET] Match found: ${username} (${socket.id}) vs ${opponent.username} (${opponent.socketId}) -> Game ID: ${game.id}`);

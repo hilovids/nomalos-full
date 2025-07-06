@@ -15,9 +15,17 @@ function condenseGameForArchive(game: Game) {
 // Archive a finished game (condensed format)
 export async function archiveGame(game: Game) {
     const db = getDb();
+    const condensedMoveList = compressMoveList(game.state.moveList, game.state.board.size).toString();
+
+    // Only archive if a game with the same condensedMoveList does not exist
+    const existing = await db.collection<ArchivedGame>(ARCHIVE_COLLECTION).findOne({ condensedMoveList });
+    if (existing) {
+        return existing._id; // Return the existing game's ID
+    }
+
     const archivedGame: ArchivedGame = {
         moveList: game.state.moveList,
-        condensedMoveList: compressMoveList(game.state.moveList, game.state.board.size).toString(),
+        condensedMoveList,
     };
     const result = await db.collection<ArchivedGame>(ARCHIVE_COLLECTION).insertOne(archivedGame);
     return result.insertedId;

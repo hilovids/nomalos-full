@@ -1,22 +1,12 @@
 const K_FACTOR = 32;
 
-/**
- * Calculate new ELO ratings for two players after a game.
- * @param ratingA Player A's current rating
- * @param ratingB Player B's current rating
- * @param resultA 1 = win for A, 0.5 = draw, 0 = loss for A
- * @returns [newRatingA, newRatingB]
- */
-export function calculateElo(
-    ratingA: number,
-    ratingB: number,
-    resultA: 1 | 0.5 | 0,
-): [number, number] {
-    const expectedA = 1 / (1 + Math.pow(10, (ratingB - ratingA) / 400));
-    const expectedB = 1 / (1 + Math.pow(10, (ratingA - ratingB) / 400));
-    const newA = ratingA + K_FACTOR * (resultA - expectedA);
-    const newB = ratingB + K_FACTOR * ((1 - resultA) - expectedB);
-    return [Math.round(newA), Math.round(newB)];
+export function calculateElo(r1: number, r2: number, score: number): [number, number] {
+    const K = 32;
+    const expected1 = 1 / (1 + Math.pow(10, (r2 - r1) / 400));
+    const expected2 = 1 / (1 + Math.pow(10, (r1 - r2) / 400));
+    const newR1 = Math.round(r1 + K * (score - expected1));
+    const newR2 = Math.round(r2 + K * ((1 - score) - expected2));
+    return [newR1, newR2];
 }
 
 /**

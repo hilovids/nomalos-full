@@ -14,7 +14,6 @@ export default function GamePage() {
     const [eloChange, setEloChange] = useState<number | null>(null);
     const [result, setResult] = useState<"win" | "loss" | "draw" | null>(null);
     const socket = getSocket();
-    const reconnectingRef = useRef(false);
     const router = useRouter();
     const [showForfeitConfirm, setShowForfeitConfirm] = useState(false);
     const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -40,55 +39,6 @@ export default function GamePage() {
 
     function getMoveTimeMs() {
         return game?.timing === "short" ? 2 * 60 * 1000 : 24 * 60 * 60 * 1000; // 2 min or 24 hours
-    }
-
-    function getEloPreview() {
-        if (!game?.rated || !user) return null;
-        // Find both players
-        const [playerAId, playerBId] = game.players || [];
-        const isShort = game.timing === "short";
-        // Find user and opponent
-        const myId = user.id;
-        const oppId = playerAId === myId ? playerBId : playerAId;
-        const myRating = isShort ? user.shortRating : user.longRating;
-        // Try to get opponent rating from game object (if available)
-        const opp =
-            game.playerUsernames && game.players
-                ? (game.players[0] === myId ? game.players[1] : game.players[0])
-                : null;
-        // Try to get opponent rating from game object (if available)
-        let oppRating = 1000;
-        if (game.opponentRating !== undefined) {
-            oppRating = game.opponentRating;
-        } else if (game.opponent && typeof game.opponent === "object") {
-            oppRating = isShort ? game.opponent.shortRating : game.opponent.longRating;
-        } else if (game.players && game.players.length === 2 && game.playerRatings) {
-            oppRating = game.players[0] === myId ? game.playerRatings[1] : game.playerRatings[0];
-        } else if (game.players && game.players.length === 2 && game.playerUserRatings) {
-            oppRating = game.players[0] === myId ? game.playerUserRatings[1] : game.playerUserRatings[0];
-        } else if (game.players && game.players.length === 2 && game.players[1] !== myId && game.whitePlayerRating) {
-            oppRating = game.whitePlayerRating;
-        } else if (game.players && game.players.length === 2 && game.players[0] !== myId && game.blackPlayerRating) {
-            oppRating = game.blackPlayerRating;
-        } else if (game.players && game.players.length === 2 && user.id !== game.players[0] && user.id !== game.players[1]) {
-            oppRating = 1000;
-        }
-
-        // Fallback: if user object doesn't have rating, fallback to 1000
-        const myR = typeof myRating === "number" ? myRating : 1000;
-        const oppR = typeof oppRating === "number" ? oppRating : 1000;
-
-        // ELO calculation (simple 1v1)
-        function expected(r1: number, r2: number) {
-            return 1 / (1 + Math.pow(10, (r2 - r1) / 400));
-        }
-        const K = 32;
-        const expWin = expected(myR, oppR);
-        const expDraw = expWin; // For draw, delta is always K*(0.5 - exp)
-        const winDelta = Math.round(K * (1 - expWin));
-        const drawDelta = Math.round(K * (0.5 - expWin));
-        const lossDelta = Math.round(K * (0 - expWin));
-        return { winDelta, drawDelta, lossDelta };
     }
 
     function Modal({ open, onClose, children }: { open: boolean, onClose: () => void, children: React.ReactNode }) {
@@ -255,18 +205,7 @@ export default function GamePage() {
                     else res = "loss";
                     setResult(res);
 
-                    if (g.rated) {
-                        const preview = getEloPreview();
-                        if (preview) {
-                            setEloChange(
-                                res === "win"
-                                    ? preview.winDelta
-                                    : res === "draw"
-                                        ? preview.drawDelta
-                                        : preview.lossDelta
-                            );
-                        }
-                    } else {
+                    if (!g.rated) {
                         setEloChange(null);
                     }
                 }
@@ -413,7 +352,7 @@ export default function GamePage() {
             <div className="mb-4 text-center">
                 {game?.state?.isOver ? (
                     <>
-                        <span className="text-red-400 font-bold">Game Over</span>
+                        <span className="text-yellow-300 font-bold">Game Over</span>
                         <div className="mt-2 text-base">
                             {user && (user.id === game?.blackPlayer || user.id === game?.whitePlayer) ? (
                                 game.winner === user.id ? (
@@ -421,7 +360,7 @@ export default function GamePage() {
                                 ) : game.winner === null ? (
                                     <span className="text-yellow-300 font-semibold">Draw</span>
                                 ) : (
-                                    <span className="text-red-400 font-semibold">You lost</span>
+                                    <span className="text-red-400 font-semibold">You lost...</span>
                                 )
                             ) : (
                                 <>
@@ -533,29 +472,27 @@ export default function GamePage() {
                                         </div>
                                     );
                                 }
-                                const preview = getEloPreview();
-                                return preview ? (
-                                    <div className="flex flex-col items-center text-xs text-gray-200">
-                                        <div>
-                                            <span className="font-bold text-green-400">Win:</span>{" "}
-                                            <span className={preview.winDelta >= 0 ? "text-green-400" : "text-red-400"}>
-                                                {preview.winDelta > 0 ? "+" : ""}{preview.winDelta}
-                                            </span>
+                                // Use game.eloOutcomes for preview
+                                if (user && game.eloOutcomes && game.eloOutcomes[user.id]) {
+                                    const preview = game.eloOutcomes[user.id];
+                                    return (
+                                        <div className="flex flex-col items-center text-xs text-gray-200">
+                                            <div>
+                                                <span className="font-bold text-green-400">Win:</span>{" "}
+                                                <span className={preview.win >= 0 ? "text-green-400" : "text-red-400"}>
+                                                    {preview.win > 0 ? "+" : ""}{preview.win}
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <span className="font-bold text-red-400">Loss:</span>{" "}
+                                                <span className={preview.loss >= 0 ? "text-green-400" : "text-red-400"}>
+                                                    {preview.loss > 0 ? "+" : ""}{preview.loss}
+                                                </span>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <span className="font-bold text-yellow-300">Draw:</span>{" "}
-                                            <span className={preview.drawDelta >= 0 ? "text-green-400" : "text-red-400"}>
-                                                {preview.drawDelta > 0 ? "+" : ""}{preview.drawDelta}
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <span className="font-bold text-red-400">Loss:</span>{" "}
-                                            <span className={preview.lossDelta >= 0 ? "text-green-400" : "text-red-400"}>
-                                                {preview.lossDelta > 0 ? "+" : ""}{preview.lossDelta}
-                                            </span>
-                                        </div>
-                                    </div>
-                                ) : (
+                                    );
+                                }
+                                return (
                                     <div className="text-gray-400 text-xs text-center">Unable to calculate</div>
                                 );
                             })()
