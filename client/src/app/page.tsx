@@ -12,31 +12,30 @@ export default function Home() {
     }
   }, []);
 
-  function OnlineCount() {
-    const [count, setCount] = useState<number | null>(null);
+function OnlineCount() {
+  const [count, setCount] = useState<number | null>(null);
 
-    useEffect(() => {
-      let isMounted = true;
-      async function fetchCount() {
-        try {
-          const token = localStorage.getItem("token");
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/health/online`, {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-          });
-          const data = await res.json();
-          if (isMounted) setCount(data.count ?? null);
-        } catch {
-          if (isMounted) setCount(null);
-        }
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchCount() {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/health/online`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const data = await res.json();
+        if (isMounted) setCount(data.count ?? null);
+      } catch {
+        if (isMounted) setCount(null);
       }
-      fetchCount();
-      const interval = setInterval(fetchCount, 60000); // poll every 10s
-      return () => { isMounted = false; clearInterval(interval); };
-    }, []);
+    }
+    fetchCount(); // Only called once on mount
+    return () => { isMounted = false; };
+  }, []);
 
-    if (count === null) return <span>Checking online users...</span>;
-    return <span>{count} {count === 1 ? "player" : "players"} online</span>;
-  }
+  if (count === null) return <span>Checking online users...</span>;
+  return <span>{count} {count === 1 ? "player" : "players"} online</span>;
+}
 
   return (
     <div className="flex flex-col" style={{ paddingTop: "88px" }}>
