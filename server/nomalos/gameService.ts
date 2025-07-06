@@ -1,5 +1,6 @@
 import * as GameRepo from "../database/games";
 import * as UserRepo from "../database/users";
+import * as ArchiveRepo from "../database/archive";
 import { ObjectId } from "mongodb";
 import { Game, GameMode, GameTiming } from "../nomalos/game";
 import { GameState, createGameState } from "../nomalos/gameState";
@@ -158,9 +159,8 @@ export default class GameService {
         game.updatedAt = new Date();
 
         await GameService.updateEloAndStats(game, winnerId, false);
-
         await GameRepo.updateGame(game.id, game);
-        // await ArchiveRepo.archiveGame(game);
+        await ArchiveRepo.archiveGame(game);
 
         return { game, winnerId };
     }
@@ -184,8 +184,9 @@ export default class GameService {
         }
         game.updatedAt = new Date();
 
+        await GameService.updateEloAndStats(game, winnerId, isDraw);
         await GameRepo.updateGame(game.id, game);
-        // await ArchiveRepo.archiveGame(game);
+        await ArchiveRepo.archiveGame(game);
 
         return game;
     }

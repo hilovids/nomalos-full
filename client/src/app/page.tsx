@@ -41,14 +41,14 @@ export default function Home() {
           </p>
         </section>
                 <section className="mb-24 bg-[#181818] rounded-lg shadow p-6 w-full">
-          <h2 className="text-xl font-semibold mb-2 text-white">What's Next?</h2>
+          <h2 className="text-xl font-semibold mb-2 text-white">Planned Features</h2>
           <ol className="list-decimal list-inside text-gray-200 mb-2">
-            <li>Spectating and Match Replays</li>
-            <li>Vs. Computer Matches</li>
-            <li>Friends and Custom Games</li>
-            <li>Improved Mobile Designs</li>
+            <li>Spectating and match teplays</li>
+            <li>Vs. Computer matches</li>
+            <li>Friend lists and custom games</li>
+            <li>Improved mobile design</li>
             <li>Animations and more...</li>
-            <li>In Game Chat</li>
+            <li>In-game chat</li>
           </ol>
         </section>
       </main>

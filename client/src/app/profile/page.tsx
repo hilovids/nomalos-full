@@ -95,10 +95,10 @@ export default function ProfilePage() {
           </div>
           <div className="mt-4 sm:mt-0 sm:ml-4 flex-shrink-0">
             <Link
-              href="/new-game"
+              href="/find-game"
               className="bg-[#3fae49] hover:bg-[#2e8c36] text-white px-5 py-2 rounded font-semibold transition-colors"
             >
-              New Game
+              Find Game
             </Link>
           </div>
         </div>

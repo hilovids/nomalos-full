@@ -1,6 +1,6 @@
 import { ObjectId } from "mongodb";
 import { getDb } from "./mongodb";
-import { Game } from "../nomalos/game";
+import { Game, ArchivedGame } from "../nomalos/game";
 import { canonicalizeMoveList, compressMoveList } from "../utils/encodingUtils";
 
 const ARCHIVE_COLLECTION = "Archive";
@@ -15,10 +15,11 @@ function condenseGameForArchive(game: Game) {
 // Archive a finished game (condensed format)
 export async function archiveGame(game: Game) {
     const db = getDb();
-    const condensed = condenseGameForArchive(game);
-    console.log("Archiving game with condensed moves:", condensed);
-    console.log(game);
-    const result = await db.collection(ARCHIVE_COLLECTION).insertOne({ _id: new ObjectId(condensed.toString()), moves: canonicalizeMoveList(game.state.moveList, game.state.board.size)});
+    const archivedGame: ArchivedGame = {
+        moveList: game.state.moveList,
+        condensedMoveList: compressMoveList(game.state.moveList, game.state.board.size).toString(),
+    };
+    const result = await db.collection<ArchivedGame>(ARCHIVE_COLLECTION).insertOne(archivedGame);
     return result.insertedId;
 }
 

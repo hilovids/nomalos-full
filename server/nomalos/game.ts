@@ -21,3 +21,9 @@ export type Game = {
     winner: string | null;
     eloChanges?: { [userId: string]: number };
 };
+
+export type ArchivedGame = {
+    id?: string;
+    moveList: number[];
+    condensedMoveList: string;
+}

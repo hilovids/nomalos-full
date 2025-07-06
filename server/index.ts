@@ -4,7 +4,6 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import gameRouter from "./api/game";
-import archiveRouter from "./api/archive";
 import userRouter from "./api/user";
 import { connectToMongo } from "./database/mongodb";
 import http from "http";
@@ -50,7 +49,6 @@ app.use(express.json());
 // Connect to MongoDB before starting the server
 connectToMongo().then(() => {
     app.use("/api/game", gameRouter);
-    app.use("/api/archive", archiveRouter);
     app.use("/api/user", userRouter);
 
     const matchmakingQueue: any[] = [];

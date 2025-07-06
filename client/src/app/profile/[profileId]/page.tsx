@@ -95,10 +95,10 @@ export default function ProfileIdPage() {
           </div>
           <div className="mt-4 sm:mt-0 sm:ml-4 flex-shrink-0">
             <Link
-              href="/find-game"
+              href="/new-game"
               className="bg-[#3fae49] hover:bg-[#2e8c36] text-white px-5 py-2 rounded font-semibold transition-colors"
             >
-              Find Game
+              New Game
             </Link>
           </div>
         </div>
