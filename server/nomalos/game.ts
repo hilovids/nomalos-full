@@ -9,6 +9,7 @@ export type GameTiming = "short" | "long";
 export type Game = {
     id: string;
     mode: GameMode;
+    rated: boolean;
     timing: GameTiming;
     players: string[]; // [blackPlayerId, whitePlayerId]
     playerUsernames: string[];
@@ -18,4 +19,5 @@ export type Game = {
     createdAt: Date;
     updatedAt: Date;
     winner: string | null;
+    eloChanges?: { [userId: string]: number };
 };

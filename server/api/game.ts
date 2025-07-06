@@ -1,5 +1,4 @@
 import { Router, Request, Response } from "express";
-import { GameManager } from "../nomalos/gameManager";
 import * as GameRepo from "../database/games";
 import * as UserRepo from "../database/users";
 import * as ArchiveRepo from "../database/archive";
@@ -8,6 +7,7 @@ import { calculateElo } from "../utils/eloUtils";
 import { Space } from "../nomalos/space";
 import rateLimit from "express-rate-limit";
 import { io } from "../index"; // <-- Socket.IO instance
+import GameService from "../nomalos/GameService"; // <-- Use GameService
 
 const router = Router();
 
@@ -37,7 +37,7 @@ async function isUserInGame(userId: string, game: any): Promise<boolean> {
 // Create a new game
 router.post("/", async (req: Request, res: Response) => {
     try {
-        const { mode, timing, players, playerUsernames, size } = req.body;
+        const { mode, rated, timing, players, playerUsernames, size } = req.body;
         // --- 2. Input validation ---
         if (
             !Array.isArray(players) || players.length !== 2 ||
@@ -47,8 +47,14 @@ router.post("/", async (req: Request, res: Response) => {
             res.status(400).json({ error: "Invalid game creation parameters" });
             return;
         }
-        const game = GameManager.createGame(mode, timing, players, playerUsernames, size);
-        await GameRepo.createGame(game);
+        const game = await GameService.createGame(
+            mode,
+            timing,
+            rated,
+            players as [string, string],
+            playerUsernames as [string, string],
+            size
+        );
         res.status(201).json({ id: game.id, game });
         return;
     } catch (err) {
@@ -59,10 +65,7 @@ router.post("/", async (req: Request, res: Response) => {
 
 // Get a game by ID
 router.get("/:id", async (req: Request, res: Response) => {
-    let game = GameManager.getGame(req.params.id);
-    if (!game) {
-        game = await GameRepo.getGameById(req.params.id);
-    }
+    const game = await GameRepo.getGameById(req.params.id);
     if (!game) {
         res.status(404).json({ error: "Game not found" });
         return;
@@ -73,14 +76,10 @@ router.get("/:id", async (req: Request, res: Response) => {
 // --- 9. Per-user rate limiting, 3. Auth, 2. Input validation, 4. Error handling, 5. Concurrency, 1. Draw handling, 8. Forfeit ---
 router.post("/:id/move", moveLimiter, async (req: Request, res: Response) => {
     const { row, col, userId } = req.body;
-    let game = GameManager.getGame(req.params.id);
+    const game = await GameRepo.getGameById(req.params.id);
     if (!game) {
-        game = await GameRepo.getGameById(req.params.id);
-        if (!game) {
-            res.status(404).json({ error: "Game not found" });
-            return;
-        }
-        GameManager.updateGame(game.id, game);
+        res.status(404).json({ error: "Game not found" });
+        return;
     }
 
     // --- 3. Authorization: Only allow players in the game to move ---
@@ -103,203 +102,88 @@ router.post("/:id/move", moveLimiter, async (req: Request, res: Response) => {
         return;
     }
 
-    // Apply the move
-    const newState = makeMove(game.state, row, col);
-    if (!newState) {
-        res.status(400).json({ error: "Invalid move" });
-        return;
-    }
-    game.state = newState;
-    game.updatedAt = new Date();
-
-    // Emit game update to all clients in this game room
-    io.to(game.id).emit("game_update", { gameId: game.id, game });
-
-    // --- 1. Draw Handling ---
-    let isDraw = false;
-    let winnerId: string | null = null;
-    if (newState.isOver) {
-        if (newState.winner === Space.Black) {
-            winnerId = game.blackPlayer;
-        } else if (newState.winner === Space.White) {
-            winnerId = game.whitePlayer;
-        } else {
-            isDraw = true;
-            winnerId = null;
-        }
-        game.winner = winnerId;
-
-        // Emit game over event
-        io.to(game.id).emit("game_over", { gameId: game.id, winner: winnerId, isDraw });
-
-        // --- ELO and stats update (for 2-player games) ---
-        if (game.players.length === 2) {
-            const [playerAId, playerBId] = game.players;
-            const playerA = await UserRepo.getUserById(playerAId);
-            const playerB = await UserRepo.getUserById(playerBId);
-            if (playerA && playerB) {
-                const isShort = game.timing === "short";
-                const ratingA = isShort ? playerA.shortRating : playerA.longRating;
-                const ratingB = isShort ? playerB.shortRating : playerB.longRating;
-                let resultA: 1 | 0.5 | 0 = 0.5, resultB: 1 | 0.5 | 0 = 0.5;
-                if (!isDraw) {
-                    resultA = winnerId === playerAId ? 1 : 0;
-                    resultB = 1 - resultA as 1 | 0;
-                }
-                const [newA, newB] = calculateElo(ratingA, ratingB, resultA);
-
-                // Update ratings
-                await UserRepo.updateUser(playerAId, isShort ? { shortRating: newA } : { longRating: newA });
-                await UserRepo.updateUser(playerBId, isShort ? { shortRating: newB } : { longRating: newB });
-
-                // Update stats (shortStats/longStats/combinedStats)
-                const statsField = isShort ? "shortStats" : "longStats";
-                const updateStats = (user: any, result: 1 | 0.5 | 0) => {
-                    const stats = { ...(user[statsField] || { gamesPlayed: 0, gamesWon: 0, gamesLost: 0, gamesDrawn: 0 }) };
-                    stats.gamesPlayed += 1;
-                    if (result === 1) stats.gamesWon += 1;
-                    else if (result === 0) stats.gamesLost += 1;
-                    else stats.gamesDrawn += 1;
-                    return stats;
-                };
-                const updateCombined = (user: any, result: 1 | 0.5 | 0) => {
-                    const stats = { ...(user.combinedStats || { gamesPlayed: 0, gamesWon: 0, gamesLost: 0, gamesDrawn: 0 }) };
-                    stats.gamesPlayed += 1;
-                    if (result === 1) stats.gamesWon += 1;
-                    else if (result === 0) stats.gamesLost += 1;
-                    else stats.gamesDrawn += 1;
-                    return stats;
-                };
-
-                await UserRepo.updateUser(playerAId, {
-                    [statsField]: updateStats(playerA, resultA),
-                    combinedStats: updateCombined(playerA, resultA)
-                });
-                await UserRepo.updateUser(playerBId, {
-                    [statsField]: updateStats(playerB, resultB),
-                    combinedStats: updateCombined(playerB, resultB)
-                });
-            }
-        }
-
-        // Persist game as finished
-        await GameRepo.updateGame(game.id, game);
-
-        // Remove from memory if present
-        GameManager.removeGame(game.id);
-
-        // Archive the game
-        await ArchiveRepo.archiveGame(game);
-
-        // Reload the finished game from DB for response
-        const finishedGame = await GameRepo.getGameById(game.id);
-        res.json({ game: finishedGame, message: isDraw ? "Game finished in a draw" : "Game finished" });
-        return;
-    }
-
-    // Otherwise, update in memory and DB
-    GameManager.updateGame(game.id, game);
-    await GameRepo.updateGame(game.id, game);
-    res.json({ game });
-});
-
-// --- 8. Forfeit endpoint ---
-router.post("/:id/forfeit", async (req: Request, res: Response) => {
-    const { userId } = req.body;
-    let game = GameManager.getGame(req.params.id);
-    if (!game) {
-        game = await GameRepo.getGameById(req.params.id);
-        if (!game) {
-            res.status(404).json({ error: "Game not found" });
+    // Apply the move using GameService
+    try {
+        const result = await GameService.makeMove(game.id, row, col, userId);
+        if (!result) {
+            res.status(400).json({ error: "Invalid move or move could not be applied." });
             return;
         }
-        GameManager.updateGame(game.id, game);
-    }
+        const { game: updatedGame, winnerId, isDraw } = result;
 
-    // Only allow a player in the game to forfeit
-    if (!userId || !(await isUserInGame(userId, game))) {
-        res.status(403).json({ error: "You are not a player in this game." });
-        return;
-    }
+        // Emit game update to all clients in this game room
+        io.to(updatedGame.id).emit("game_update", { gameId: updatedGame.id, game: updatedGame });
 
-    // Can't forfeit if already over
-    if (game.state.isOver) {
-        res.status(409).json({ error: "Game is already finished." });
-        return;
-    }
+        // --- 1. Draw Handling ---
+        if (updatedGame.state.isOver) {
+            io.to(updatedGame.id).emit("game_over", { gameId: updatedGame.id, winner: winnerId, isDraw });
 
-    // The other player is the winner
-    let winnerId: string | null = null;
-    if (userId === game.blackPlayer) {
-        winnerId = game.whitePlayer;
-    } else if (userId === game.whitePlayer) {
-        winnerId = game.blackPlayer;
-    }
+            // --- ELO and stats update (for 2-player games) ---
+            if (updatedGame.players.length === 2) {
+                const [playerAId, playerBId] = updatedGame.players;
+                const playerA = await UserRepo.getUserById(playerAId);
+                const playerB = await UserRepo.getUserById(playerBId);
+                if (playerA && playerB) {
+                    const isShort = updatedGame.timing === "short";
+                    const ratingA = isShort ? playerA.shortRating : playerA.longRating;
+                    const ratingB = isShort ? playerB.shortRating : playerB.longRating;
+                    let resultA: 1 | 0.5 | 0 = 0.5, resultB: 1 | 0.5 | 0 = 0.5;
+                    if (!isDraw) {
+                        resultA = winnerId === playerAId ? 1 : 0;
+                        resultB = 1 - resultA as 1 | 0;
+                    }
+                    const [newA, newB] = calculateElo(ratingA, ratingB, resultA);
 
-    game.state.isOver = true;
-    game.state.winner = winnerId === game.blackPlayer ? Space.Black : Space.White;
-    game.winner = winnerId;
+                    // Update ratings
+                    await UserRepo.updateUser(playerAId, isShort ? { shortRating: newA } : { longRating: newA });
+                    await UserRepo.updateUser(playerBId, isShort ? { shortRating: newB } : { longRating: newB });
 
-    // Emit forfeit event
-    io.to(game.id).emit("game_forfeit", { gameId: game.id, winner: winnerId });
+                    // Update stats (shortStats/longStats/combinedStats)
+                    const statsField = isShort ? "shortStats" : "longStats";
+                    const updateStats = (user: any, result: 1 | 0.5 | 0) => {
+                        const stats = { ...(user[statsField] || { gamesPlayed: 0, gamesWon: 0, gamesLost: 0, gamesDrawn: 0 }) };
+                        stats.gamesPlayed += 1;
+                        if (result === 1) stats.gamesWon += 1;
+                        else if (result === 0) stats.gamesLost += 1;
+                        else stats.gamesDrawn += 1;
+                        return stats;
+                    };
+                    const updateCombined = (user: any, result: 1 | 0.5 | 0) => {
+                        const stats = { ...(user.combinedStats || { gamesPlayed: 0, gamesWon: 0, gamesLost: 0, gamesDrawn: 0 }) };
+                        stats.gamesPlayed += 1;
+                        if (result === 1) stats.gamesWon += 1;
+                        else if (result === 0) stats.gamesLost += 1;
+                        else stats.gamesDrawn += 1;
+                        return stats;
+                    };
 
-    // ELO and stats update (for 2-player games)
-    if (game.players.length === 2 && winnerId) {
-        const [playerAId, playerBId] = game.players;
-        const playerA = await UserRepo.getUserById(playerAId);
-        const playerB = await UserRepo.getUserById(playerBId);
-        if (playerA && playerB) {
-            const isShort = game.timing === "short";
-            const ratingA = isShort ? playerA.shortRating : playerA.longRating;
-            const ratingB = isShort ? playerB.shortRating : playerB.longRating;
-            const resultA = winnerId === playerAId ? 1 : 0;
-            const resultB = 1 - resultA as 1 | 0;
-            const [newA, newB] = calculateElo(ratingA, ratingB, resultA);
+                    await UserRepo.updateUser(playerAId, {
+                        [statsField]: updateStats(playerA, resultA),
+                    });
+                    await UserRepo.updateUser(playerBId, {
+                        [statsField]: updateStats(playerB, resultB),
+                    });
+                }
+            }
 
-            // Update ratings
-            await UserRepo.updateUser(playerAId, isShort ? { shortRating: newA } : { longRating: newA });
-            await UserRepo.updateUser(playerBId, isShort ? { shortRating: newB } : { longRating: newB });
+            // Persist game as finished
+            await GameRepo.updateGame(updatedGame.id, updatedGame);
 
-            // Update stats (shortStats/longStats/combinedStats)
-            const statsField = isShort ? "shortStats" : "longStats";
-            const updateStats = (user: any, isWinner: boolean) => {
-                const stats = { ...(user[statsField] || { gamesPlayed: 0, gamesWon: 0, gamesLost: 0, gamesDrawn: 0 }) };
-                stats.gamesPlayed += 1;
-                if (isWinner) stats.gamesWon += 1;
-                else stats.gamesLost += 1;
-                return stats;
-            };
-            const updateCombined = (user: any, isWinner: boolean) => {
-                const stats = { ...(user.combinedStats || { gamesPlayed: 0, gamesWon: 0, gamesLost: 0, gamesDrawn: 0 }) };
-                stats.gamesPlayed += 1;
-                if (isWinner) stats.gamesWon += 1;
-                else stats.gamesLost += 1;
-                return stats;
-            };
+            // Archive the game
+            await ArchiveRepo.archiveGame(updatedGame);
 
-            await UserRepo.updateUser(playerAId, {
-                [statsField]: updateStats(playerA, resultA === 1),
-                combinedStats: updateCombined(playerA, resultA === 1)
-            });
-            await UserRepo.updateUser(playerBId, {
-                [statsField]: updateStats(playerB, resultB === 1),
-                combinedStats: updateCombined(playerB, resultB === 1)
-            });
+            // Reload the finished game from DB for response
+            const finishedGame = await GameRepo.getGameById(updatedGame.id);
+            res.json({ game: finishedGame, message: isDraw ? "Game finished in a draw" : "Game finished" });
+            return;
         }
+
+        // Otherwise, update DB
+        await GameRepo.updateGame(updatedGame.id, updatedGame);
+        res.json({ game: updatedGame });
+    } catch (err) {
+        res.status(400).json({ error: "Failed to make move", details: err instanceof Error ? err.message : err });
     }
-
-    // Persist game as finished
-    await GameRepo.updateGame(game.id, game);
-
-    // Remove from memory if present
-    GameManager.removeGame(game.id);
-
-    // Archive the game
-    await ArchiveRepo.archiveGame(game);
-
-    // Reload the finished game from DB for response
-    const finishedGame = await GameRepo.getGameById(game.id);
-    res.json({ game: finishedGame, message: "Game forfeited" });
 });
 
 export default router;

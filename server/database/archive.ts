@@ -3,7 +3,7 @@ import { getDb } from "./mongodb";
 import { Game } from "../nomalos/game";
 import { canonicalizeMoveList, compressMoveList } from "../utils/encodingUtils";
 
-const ARCHIVE_COLLECTION = "archived_games";
+const ARCHIVE_COLLECTION = "Archive";
 
 // Utility to condense game data for archive
 function condenseGameForArchive(game: Game) {
@@ -16,6 +16,8 @@ function condenseGameForArchive(game: Game) {
 export async function archiveGame(game: Game) {
     const db = getDb();
     const condensed = condenseGameForArchive(game);
+    console.log("Archiving game with condensed moves:", condensed);
+    console.log(game);
     const result = await db.collection(ARCHIVE_COLLECTION).insertOne({ _id: new ObjectId(condensed.toString()), moves: canonicalizeMoveList(game.state.moveList, game.state.board.size)});
     return result.insertedId;
 }

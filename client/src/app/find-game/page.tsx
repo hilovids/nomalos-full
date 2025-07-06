@@ -7,10 +7,12 @@ export default function FindGamePage() {
     const [status, setStatus] = useState<"idle" | "waiting" | "matched" | "error">("idle");
     const [error, setError] = useState("");
     const [timing, setTiming] = useState<"short" | "long">("short");
+    const [rated, setRated] = useState(true);
     const router = useRouter();
     const socket = getSocket();
 
     useEffect(() => {
+        setError("");
         socket.on("waiting_for_match", () => setStatus("waiting"));
         socket.on("match_found", (data) => {
             setStatus("matched");
@@ -38,6 +40,7 @@ export default function FindGamePage() {
             username: user.username,
             rating: timing === "short" ? user.shortRating || 1000 : user.longRating || 1000,
             timing,
+            rated,
             size: 11,
         });
     }
@@ -65,6 +68,27 @@ export default function FindGamePage() {
                         <option value="short">Short (??? min)</option>
                         <option value="long">Long (??? min)</option>
                     </select>
+                </div>
+                <div className="mb-6 w-full flex flex-col items-center">
+                    <label className="block text-gray-300 mb-2 font-medium">
+                        Rated Match
+                    </label>
+                    <div className="flex items-center gap-4">
+                        <button
+                            className={`px-4 py-2 rounded font-semibold transition-colors border ${rated ? "bg-[#3fae49] text-white border-[#3fae49]" : "bg-[#232323] text-gray-300 border-[#333]"}`}
+                            onClick={() => setRated(true)}
+                            disabled={status === "waiting" || status === "matched"}
+                        >
+                            Rated
+                        </button>
+                        <button
+                            className={`px-4 py-2 rounded font-semibold transition-colors border ${!rated ? "bg-[#3fae49] text-white border-[#3fae49]" : "bg-[#232323] text-gray-300 border-[#333]"}`}
+                            onClick={() => setRated(false)}
+                            disabled={status === "waiting" || status === "matched"}
+                        >
+                            Unrated
+                        </button>
+                    </div>
                 </div>
                 {status === "idle" && (
                     <button

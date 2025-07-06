@@ -17,10 +17,12 @@ export type User = {
         gamesLost: number;
         gamesDrawn: number;
     };
-    combinedStats: {
-        gamesPlayed: number;
-        gamesWon: number;
-        gamesLost: number;
-        gamesDrawn: number;
-    };
+    shortRatingHistory?: EloEntry[];
+    longRatingHistory?: EloEntry[];
+};
+
+export type EloEntry = {
+    date: Date;
+    shortRating: number;
+    longRating: number;
 };
