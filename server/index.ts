@@ -11,7 +11,7 @@ import http from "http";
 import { Server as SocketIOServer } from "socket.io";
 import * as GameRepo from "./database/games";
 import createHealthRouter from "./api/health";
-import GameService from "./nomalos/GameService";
+import GameService from "./nomalos/gameService";
 import cron from "node-cron";
 
 

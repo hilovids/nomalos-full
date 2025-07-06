@@ -32,6 +32,7 @@ export default function ProfilePage() {
       setUser(JSON.parse(userData));
     }
     setToken(tokenData || null);
+    document.title = "Your Profile | Nomalos";
   }, []);
 
   // Fetch up-to-date user info from API

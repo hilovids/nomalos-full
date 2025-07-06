@@ -12,6 +12,14 @@ export default function FindGamePage() {
     const socket = getSocket();
 
     useEffect(() => {
+        if (status === "waiting") {
+            document.title = "Waiting... | Nomalos";
+        } else {
+            document.title = "Find Game | Nomalos";
+        }
+    }, [status]);
+
+    useEffect(() => {
         setError("");
         socket.on("waiting_for_match", () => setStatus("waiting"));
         socket.on("match_found", (data) => {

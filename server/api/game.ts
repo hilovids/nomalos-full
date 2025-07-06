@@ -7,7 +7,7 @@ import { calculateElo } from "../utils/eloUtils";
 import { Space } from "../nomalos/space";
 import rateLimit from "express-rate-limit";
 import { io } from "../index"; // <-- Socket.IO instance
-import GameService from "../nomalos/GameService"; // <-- Use GameService
+import GameService from "../nomalos/gameService"; // <-- Use GameService
 
 const router = Router();
 

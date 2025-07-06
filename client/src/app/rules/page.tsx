@@ -1,12 +1,17 @@
+export const metadata = {
+  title: "Rules | Nomalos",
+};
+
 export default function RulesPage() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-[#232323]" style={{ paddingTop: "88px", paddingBottom: "64px" }}>
       <div className="max-w-2xl w-full bg-[#181818] rounded-lg shadow p-8 mt-8">
         <h1 className="text-3xl font-bold mb-4 text-[#60a5fa]">Nomalos Rules</h1>
         <p className="text-gray-200 mb-4">
-          <strong>Nomalos</strong> is an abstract strategy game for two players. The rules are simple, but the strategy is deep. Below are the rules for both <span className="font-bold text-[#60a5fa]">Classic Nomalos</span> and <span className="font-bold text-[#60a5fa]">Convergent Nomalos</span>.
+          <strong>Nomalos</strong> is an abstract strategy game for two players. The rules are simple, but the strategy is deep. Below are the rules for Nomalos.
         </p>
 
+        <h3 className="text-lg font-semibold text-white mt-6 mb-2">How to Play</h3>
         <ol className="list-decimal list-inside text-gray-200 mb-4">
           <li>Play alternates between two players, each with their own colored pieces.</li>
           <li>On your turn, place one of your colored pieces onto any unoccupied space on the board.</li>

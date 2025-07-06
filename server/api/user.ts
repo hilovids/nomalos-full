@@ -55,8 +55,10 @@ router.post("/login", async (req: Request, res: Response) => {
                 gamesWon: 0,
                 gamesLost: 0,
                 gamesDrawn: 0
-            }
+            },
+            ...(password ? { passwordHash: await bcrypt.hash(password, 10) } : {})
         };
+
         const id = await UserRepo.createUser(newUser);
         user = await UserRepo.getUserById(id.toString());
         if (!user) {
@@ -68,28 +70,41 @@ router.post("/login", async (req: Request, res: Response) => {
         res.status(201).json({ user: sanitizeUser(user), token, message: "Account created and logged in" });
         return;
     }
-
-    // User exists
-    if (user.passwordHash) {
-        if (!password) {
-            res.status(401).json({ error: "Password required for this account" });
+    else {
+        if (user.passwordHash) {
+            if (!password) {
+                res.status(401).json({ error: "Password required for this account" });
+                return;
+            }
+            // Use bcrypt to compare password
+            const isMatch = await bcrypt.compare(password, user.passwordHash);
+            if (!isMatch) {
+                res.status(401).json({ error: "Incorrect password" });
+                return;
+            }
+            const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: "7d" });
+            res.status(201).json({ user: sanitizeUser(user), token, message: "Logged in" });
+            await UserRepo.updateUser(user.id, { lastSeen: new Date() });
             return;
         }
-        // Use bcrypt to compare password
-        const isMatch = await bcrypt.compare(password, user.passwordHash);
-        if (!isMatch) {
-            res.status(401).json({ error: "Incorrect password" });
-            return;
+        else {
+            if (password) {
+                const newUser = {
+                    ...user,
+                    passwordHash: await bcrypt.hash(password, 10)
+                };
+                newUser.lastSeen = new Date();
+                await UserRepo.updateUser(user.id, newUser);
+                const token = jwt.sign({ id: newUser.id, username: newUser.username }, JWT_SECRET, { expiresIn: "7d" });
+                res.status(201).json({ user: sanitizeUser(newUser), token, message: "Logged in" });
+                return;
+            } else {
+                const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: "7d" });
+                res.status(201).json({ user: sanitizeUser(user), token, message: "Logged in" });
+                return;
+            }
         }
     }
-
-    // Update lastSeen
-    await UserRepo.updateUser(user.id, { lastSeen: new Date() });
-
-    // Issue JWT
-    const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: "7d" });
-
-    res.json({ user: sanitizeUser(user), token, message: "Logged in" });
 });
 
 /**

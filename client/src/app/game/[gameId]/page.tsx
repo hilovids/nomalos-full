@@ -176,6 +176,25 @@ export default function GamePage() {
         }
     }
 
+    useEffect(() => {
+        if (!game) return;
+        if (game.state?.isOver) {
+            // Show "vs X" where X is the opponent's username
+            if (user && game.playerUsernames && game.players) {
+                const myIdx = game.players[0] === user.id ? 0 : 1;
+                const oppIdx = myIdx === 0 ? 1 : 0;
+                const oppName = game.playerUsernames[oppIdx] || "Opponent";
+                document.title = `Match vs. ${oppName} | Nomalos`;
+            } else {
+                document.title = "Game | Nomalos";
+            }
+        } else if (isMyTurn) {
+            document.title = "Your Turn | Nomalos";
+        } else {
+            document.title = "Opponent's Turn | Nomalos";
+        }
+    }, [game, isMyTurn, user]);
+
     // Listen for socket connection changes and refresh board on reconnect or user activity
     useEffect(() => {
         if (!gameId) return;

@@ -15,14 +15,17 @@ export default function Home() {
   return (
     <div className="flex flex-col" style={{ paddingTop: "88px" }}>
       <main className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto px-4">
-        <h1 className="text-3xl font-bold mb-4 text-[#60a5fa]">Nomalos</h1>
-        <section className="mb-8 bg-[#181818] rounded-lg shadow p-6 w-full">
+        <img
+          src="/logo.svg"
+          alt="Nomalos Logo"
+          className="mb-4"
+          height={512}
+          width={512}
+          style={{ display: "block", margin: "0 auto" }}
+        />        <section className="mb-8 bg-[#181818] rounded-lg shadow p-6 w-full">
           <h2 className="text-xl font-semibold mb-2 text-white">What is Nomalos?</h2>
           <p className="text-gray-200 mb-2">
-            <strong>Nomalos</strong> is an abstract strategy game for two players involving the placement of pieces on a board. The game’s name, Nomalos, is derived from the English negation <em>‘no’</em> and the Greek word <em>‘ομαλός’</em> meaning smooth or even. Putting the two loosely together, you get the central concept of the game.
-          </p>
-          <p className="text-gray-200">
-            In Nomalos, players maximize their territory through the construction of similarly colored islands containing odd numbers of pieces.
+            <span className="font-bold text-[#60a5fa]">Nomalos</span> is an abstract strategy game for two players involving the placement of pieces on a board. In Nomalos, players maximize their territory through the construction of similarly colored islands containing odd numbers of pieces. The core rules of Nomalos and this web app were designed by <span className="font-bold text-[#60a5fa]">Davis Murphy</span>.
           </p>
         </section>
         <section className="mb-8 bg-[#181818] rounded-lg shadow p-6 w-full">
@@ -34,13 +37,7 @@ export default function Home() {
             <li>The player with the most spaces wins!</li>
           </ol>
           <p className="text-gray-400 text-sm">
-            For more details and rule variations, see the in-game help or official documentation.
-          </p>
-        </section>
-        <section className="mb-8 bg-[#181818] rounded-lg shadow p-6 w-full">
-          <h2 className="text-xl font-semibold mb-2 text-white">About the Designer</h2>
-          <p className="text-gray-200">
-            The core rules of Nomalos and this web app were designed by <span className="font-bold text-[#60a5fa]">Davis Murphy</span>. Additional support was provided by <span className="font-bold text-[#60a5fa]">Logan Smith</span> and <span className="font-bold text-[#60a5fa]">Nicholas Lorch</span>.
+            For more details on how to play, jump into a match or see the in-game rules.
           </p>
         </section>
       </main>

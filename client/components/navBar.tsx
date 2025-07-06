@@ -25,9 +25,16 @@ export default function NavBar() {
   }
 
   return (
-    <nav className="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-8 py-4 border-b border-[#333] bg-[#181818] shadow-sm">
-      <Link href="/" className="text-2xl font-bold tracking-tight text-[#60a5fa] hover:text-[#38bdf8] transition-colors">
-        Nomalos
+    <nav className="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-8 py-2 border-b border-[#333] bg-[#181818] shadow-sm">
+      <Link href="/" className="flex items-center">
+        <img
+          src="/logo_small.svg"
+          alt="Nomalos Logo"
+          width={48}
+          height={48}
+          style={{ display: "block", padding: 0, margin: 0 }}
+          className="m-0 p-0"
+        />
       </Link>
       <div className="flex items-center gap-4">
         {user ? (
@@ -38,7 +45,7 @@ export default function NavBar() {
             <Link href="/find-game" className="text-[#e0e7ef] hover:text-white font-medium transition-colors">
               Find Game
             </Link>
-                        <Link href="/profile" className="text-[#e0e7ef] hover:text-white font-medium transition-colors">
+            <Link href="/profile" className="text-[#e0e7ef] hover:text-white font-medium transition-colors">
               Profile
             </Link>
             <span className="font-medium text-gray-500 ml-2">Hello, {user.username}</span>

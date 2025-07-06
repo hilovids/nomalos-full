@@ -8,7 +8,7 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     // Allow access to home and login pages without auth
-    if (pathname === "/" || pathname.startsWith("/login") || pathname.startsWith("/about") || pathname.startsWith("/rules")) return;
+    if (pathname === "/" || pathname.startsWith("/login") || pathname.startsWith("/about") || pathname.startsWith("/rules") || pathname.startsWith("/privacy") || pathname.startsWith("/api/docs")) return;
 
     const token = localStorage.getItem("token");
     if (!token) {

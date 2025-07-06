@@ -14,6 +14,12 @@ export default function Footer() {
         <Link href="/rules" className="text-[#e0e7ef] hover:text-white font-medium transition-colors text-sm">
           Rules
         </Link>
+        <Link href="/privacy" className="text-[#e0e7ef] hover:text-white font-medium transition-colors text-sm">
+          Privacy
+        </Link>
+        <Link href="/api/docs" className="text-[#e0e7ef] hover:text-white font-medium transition-colors text-sm">
+          API
+        </Link>
         <a
           href="https://github.com/hilovids"
           target="_blank"
@@ -21,6 +27,14 @@ export default function Footer() {
           className="text-[#e0e7ef] hover:text-white font-medium transition-colors text-sm"
         >
           GitHub
+        </a>
+        <a href='https://ko-fi.com/Q5Q510CQ3D' target='_blank'>
+          <img
+            height={36}
+            style={{ border: 0, height: 36 }}
+            src='https://storage.ko-fi.com/cdn/kofi6.png?v=6'
+            alt='Buy Me a Coffee at ko-fi.com'
+          />
         </a>
       </div>
     </footer>
