@@ -1,0 +1,37 @@
+export default function RulesPage() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-[#232323]" style={{ paddingTop: "88px", paddingBottom: "64px" }}>
+      <div className="max-w-2xl w-full bg-[#181818] rounded-lg shadow p-8 mt-8">
+        <h1 className="text-3xl font-bold mb-4 text-[#60a5fa]">Nomalos Rules</h1>
+        <p className="text-gray-200 mb-4">
+          <strong>Nomalos</strong> is an abstract strategy game for two players. The rules are simple, but the strategy is deep. Below are the rules for both <span className="font-bold text-[#60a5fa]">Classic Nomalos</span> and <span className="font-bold text-[#60a5fa]">Convergent Nomalos</span>.
+        </p>
+
+        <ol className="list-decimal list-inside text-gray-200 mb-4">
+          <li>Play alternates between two players, each with their own colored pieces.</li>
+          <li>On your turn, place one of your colored pieces onto any unoccupied space on the board.</li>
+          <li>
+            If your placement connects an <strong>even</strong> number of similarly colored pieces (connections are strictly orthogonal, not diagonal), all those pieces are immediately removed from the board. Play then continues.
+          </li>
+          <li>Play ends when every space on the board is occupied or removed.</li>
+          <li>The winner is the player with the most pieces remaining on the board at the end of the game.</li>
+          <li>Spaces removed from the board do not count towards either player's piece count.</li>
+        </ol>
+
+        <h3 className="text-lg font-semibold text-white mt-6 mb-2">Clarifications</h3>
+        <ul className="list-disc list-inside text-gray-200 mb-4">
+          <li>
+            Connected pieces of the same color are called <em>islands</em>.
+          </li>
+          <li>
+            Only count pieces of the same color for removal. If Black has a 1-piece island and White has a 3-piece island, neither is removed.
+          </li>
+        </ul>
+
+        <div className="mt-8 text-gray-400 text-sm">
+          For more details, discussion, and advanced strategies, see somewhere... idk yet.
+        </div>
+      </div>
+    </div>
+  );
+}

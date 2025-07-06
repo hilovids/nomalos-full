@@ -25,22 +25,25 @@ export default function NavBar() {
   }
 
   return (
-    <nav className="w-full flex justify-between items-center px-6 py-4 border-b bg-white">
-      <Link href="/" className="text-xl font-bold">
+    <nav className="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-8 py-4 border-b border-[#333] bg-[#181818] shadow-sm">
+      <Link href="/" className="text-2xl font-bold tracking-tight text-[#60a5fa] hover:text-[#38bdf8] transition-colors">
         Nomalos
       </Link>
       <div className="flex items-center gap-4">
         {user ? (
           <>
-            <Link href="/my-games" className="text-blue-600 hover:underline">
-              My Games
-            </Link>
-            <Link href="/new-game" className="text-blue-600 hover:underline">
+            <Link href="/new-game" className="text-[#e0e7ef] hover:text-white font-medium transition-colors">
               New Game
             </Link>
-            <span className="font-medium">Hello, {user.username}</span>
+            <Link href="/find-game" className="text-[#e0e7ef] hover:text-white font-medium transition-colors">
+              Find Game
+            </Link>
+                        <Link href="/profile" className="text-[#e0e7ef] hover:text-white font-medium transition-colors">
+              Profile
+            </Link>
+            <span className="font-medium text-gray-500 ml-2">Hello, {user.username}</span>
             <button
-              className="bg-red-600 text-white px-3 py-1 rounded"
+              className="ml-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition-colors font-semibold"
               onClick={handleLogout}
             >
               Logout
@@ -50,7 +53,7 @@ export default function NavBar() {
           pathname !== "/login" && (
             <Link
               href="/login"
-              className="bg-blue-600 text-white px-4 py-2 rounded"
+              className="bg-[#3fae49] hover:bg-[#2e8c36] text-white px-5 py-2 rounded font-semibold transition-colors"
             >
               Login / Register
             </Link>
