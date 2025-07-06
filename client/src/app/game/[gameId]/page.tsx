@@ -16,6 +16,7 @@ export default function GamePage() {
     const reconnectingRef = useRef(false);
     const router = useRouter();
     const [showForfeitConfirm, setShowForfeitConfirm] = useState(false);
+    const [timeLeft, setTimeLeft] = useState<number | null>(null);
 
 
     function handleForfeit() {
@@ -28,6 +29,9 @@ export default function GamePage() {
         socket.emit("forfeit_game", { gameId, userId: user.id });
     }
 
+    function getMoveTimeMs() {
+        return game?.timing === "short" ? 2 * 60 * 1000 : 24 * 60 * 60 * 1000; // 2 min or 24 hours
+    }
 
     function getEloPreview() {
         if (!game?.rated || !user) return null;
@@ -111,6 +115,11 @@ export default function GamePage() {
         return spaces.slice(start, start + boardSize);
     }
 
+    function getLastMoveTime() {
+        // Prefer lastMoveAt if present, else fallback to updatedAt/createdAt
+        return new Date(game?.lastMoveAt || game?.updatedAt || game?.createdAt || Date.now());
+    }
+
     // Get user info from localStorage
     const user = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("user") || "null") : null;
 
@@ -142,6 +151,29 @@ export default function GamePage() {
             col: colIdx,
             userId: user.id,
         });
+    }
+
+    function formatTime(ms: number) {
+        if (game?.timing === "short") {
+            const totalSeconds = Math.floor(ms / 1000);
+            const min = Math.floor(totalSeconds / 60);
+            const sec = totalSeconds % 60;
+            return `${min}:${sec.toString().padStart(2, "0")}`;
+        } else {
+            // long: show "Xhr", then "Xmin", then "0:XX"
+            const totalSeconds = Math.floor(ms / 1000);
+            if (totalSeconds >= 3600) {
+                const hours = Math.floor(totalSeconds / 3600);
+                return `${hours}hr`;
+            } else if (totalSeconds >= 60) {
+                const min = Math.floor(totalSeconds / 60);
+                return `${min}min`;
+            } else {
+                // under 1 minute, show as 0:SS
+                const sec = totalSeconds % 60;
+                return `0:${sec.toString().padStart(2, "0")}`;
+            }
+        }
     }
 
     // Listen for socket connection changes and refresh board on reconnect or user activity
@@ -205,6 +237,42 @@ export default function GamePage() {
             socket.off("move_error");
         };
     }, [gameId, socket]);
+
+    useEffect(() => {
+        if (!game) return;
+
+        let interval: NodeJS.Timeout | null = null;
+
+        function updateTime() {
+            if (!game) return setTimeLeft(null);
+
+            const msAllowed = getMoveTimeMs();
+            const lastMove = getLastMoveTime();
+            const now = Date.now();
+
+            // Is it my turn?
+            const myTurn = isMyTurn;
+
+            if (myTurn && !game.state.isOver) {
+                const msLeft = msAllowed - (now - lastMove.getTime());
+                setTimeLeft(Math.max(0, msLeft));
+            } else {
+                setTimeLeft(msAllowed);
+            }
+        }
+
+        updateTime();
+
+        // Only count down if it's my turn and game not over
+        if (isMyTurn && !game.state.isOver) {
+            interval = setInterval(updateTime, 1000);
+        }
+
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [game, isMyTurn]);
 
     const cellPx = 32;
     const boardPadding = 16; // 8px top + 8px bottom
@@ -478,6 +546,22 @@ export default function GamePage() {
 
                     {/* Forfeit Button */}
                     <div className="flex justify-center w-full mt-4">
+                        {typeof timeLeft === "number" && (
+                            <span
+                                className={`mr-2 px-3 py-1 rounded font-mono text-sm border border-gray-300`}
+                                style={{
+                                    background: "#fff",
+                                    color: timeLeft < 60_000 ? "#dc2626" : "#111",
+                                    fontWeight: 600,
+                                    minWidth: game?.timing === "short" ? 60 : 90,
+                                    textAlign: "center",
+                                    borderColor: timeLeft < 60_000 ? "#dc2626" : "#e5e7eb"
+                                }}
+                                title={isMyTurn ? "Your time remaining" : "Opponent's turn"}
+                            >
+                                {formatTime(timeLeft)}
+                            </span>
+                        )}
                         <button
                             onClick={handleForfeit}
                             disabled={game?.state?.isOver}

@@ -65,8 +65,8 @@ export default function FindGamePage() {
                         className="bg-[#232323] text-white rounded px-4 py-2 w-40 border border-[#333] focus:outline-none focus:ring-2 focus:ring-[#60a5fa] transition"
                         disabled={status === "waiting" || status === "matched"}
                     >
-                        <option value="short">Short (??? min)</option>
-                        <option value="long">Long (??? min)</option>
+                        <option value="short">Short (2 mins)</option>
+                        <option value="long">Long (24 hrs)</option>
                     </select>
                 </div>
                 <div className="mb-6 w-full flex flex-col items-center">

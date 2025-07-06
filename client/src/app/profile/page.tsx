@@ -22,6 +22,8 @@ export default function ProfilePage() {
   const [user, setUser] = useState<any>(null);
   const [token, setToken] = useState<string | null>(null);
   const [userInfo, setUserInfo] = useState<any>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   useEffect(() => {
     const userData = localStorage.getItem("user");
@@ -61,6 +63,9 @@ export default function ProfilePage() {
         setLoading(false);
       });
   }, [user, token]);
+
+  const totalPages = Math.ceil(games.length / pageSize);
+  const pagedGames = games.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   if (loading) {
     return <div className="max-w-4xl mx-auto mt-10 text-center text-gray-300">Loading...</div>;
@@ -164,20 +169,23 @@ export default function ProfilePage() {
               <th className="py-3 px-2 font-semibold text-left">Players</th>
               <th className="py-3 px-2 font-semibold text-left">Mode</th>
               <th className="py-3 px-2 font-semibold text-left">Result</th>
+              <th className="py-3 px-2 font-semibold text-left">ELO Δ</th>
               <th className="py-3 px-2 font-semibold text-left">Moves</th>
               <th className="py-3 px-2 font-semibold text-left">Date</th>
               <th className="py-3 px-2 font-semibold text-left"></th>
             </tr>
           </thead>
           <tbody>
-            {[...games]
+            {pagedGames
               .sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime())
               .map(game => {
                 const userIsBlack = game.blackPlayer === user.id;
                 const userIsWhite = game.whitePlayer === user.id;
                 const result = getResult(game, user);
+                const eloDelta = game.eloChanges?.[user.id];
                 return (
                   <tr key={game.id} className="border-b border-[#222] hover:bg-[#232323] transition">
+                    {/* ...existing table row code... */}
                     <td className="py-2 px-2 flex flex-col gap-1">
                       <span className={`flex items-center gap-2 ${userIsBlack ? "font-bold text-white" : "text-gray-300"}`}>
                         <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#22272b" stroke="black" strokeWidth="2" /></svg>
@@ -192,12 +200,21 @@ export default function ProfilePage() {
                     </td>
                     <td className="py-2 px-2">
                       <span className="inline-block bg-[#232323] text-gray-200 px-2 py-1 rounded text-xs font-medium">
-                        {game.timing === "short" ? "Short" : "Long"}
+                        {game.timing === "short" ? "⚡ Short" : "📆 Long"}
                       </span>
                     </td>
-                    <td className={`py-2 px-2 font-semibold flex items-center gap-1 ${result.color}`}>
+                    <td className={`py-2 px-2 font-semibold ${result.color}`}>
                       <span>{result.icon}</span>
                       <span>{result.label}</span>
+                    </td>
+                    <td className="py-2 px-2 font-mono text-sm">
+                      {game.state?.isOver && typeof eloDelta === "number" ? (
+                        <span className={eloDelta > 0 ? "text-green-400" : eloDelta < 0 ? "text-red-400" : "text-yellow-400"}>
+                          {eloDelta > 0 ? "+" : ""}{eloDelta}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
                     </td>
                     <td className="py-2 px-2 text-gray-200">{game.state?.moveList?.length || 0}</td>
                     <td className="py-2 px-2 text-gray-400">{formatDate(game.updatedAt || game.createdAt)}</td>
@@ -215,6 +232,30 @@ export default function ProfilePage() {
           </tbody>
         </table>
       </div>
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 mt-6">
+          <button
+            className="px-3 py-1 rounded bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-semibold transition disabled:opacity-50"
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            Prev
+          </button>
+          <span className="text-gray-300 font-mono">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            className="px-3 py-1 rounded bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-semibold transition disabled:opacity-50"
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
+        </div>
+      )}
+      {/* Footer buffer */}
+      <div style={{ height: "80px" }} />
     </div>
   );
 }

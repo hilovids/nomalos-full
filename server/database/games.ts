@@ -16,6 +16,11 @@ export async function createGame(game: Game) {
     return game.id;
 }
 
+export async function getActiveGames() {
+    const db = getDb();
+    return await db.collection("Games").find({ "state.isOver": { $ne: true } }).toArray();
+}
+
 // Get a game by its custom string id or MongoDB ObjectId
 export async function getGameById(id: string): Promise<Game | null> {
     const db = getDb();
@@ -49,5 +54,9 @@ export async function updateGame(id: string, update: Partial<Game>) {
 // Get all games for a given userId (assumes userId is in the players array)
 export async function getGamesByUserId(userId: string): Promise<Game[]> {
     const db = getDb();
-    return db.collection<Game>(COLLECTION).find({ players: userId }).toArray();
+    return db
+        .collection<Game>(COLLECTION)
+        .find({ players: userId })
+        .sort({ updatedAt: -1, createdAt: -1 }) // Sort by updatedAt, then createdAt, newest first
+        .toArray();
 }

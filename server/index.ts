@@ -11,7 +11,9 @@ import http from "http";
 import { Server as SocketIOServer } from "socket.io";
 import * as GameRepo from "./database/games";
 import createHealthRouter from "./api/health";
-import GameService from "./nomalos/GameService"; // <-- Import GameService
+import GameService from "./nomalos/GameService";
+import cron from "node-cron";
+
 
 dotenv.config();
 
@@ -202,6 +204,38 @@ connectToMongo().then(() => {
     const PORT = process.env.PORT || 5000;
     server.listen(PORT, () => {
         console.log(`Server running on port ${PORT}`);
+    });
+
+    cron.schedule("* * * * * *", async () => {
+        const now = new Date();
+        // Get all in-progress games
+        const games = await GameRepo.getActiveGames(); // Implement this to return games where !state.isOver
+        for (const game of games) {
+            const isShort = game.timing === "short";
+            const msLimit = isShort ? 2 * 60 * 1000 : 24 * 60 * 60 * 1000; // 2 min or 24 hours
+            const lastMove = new Date(game.updatedAt || game.createdAt);
+            if (now.getTime() - lastMove.getTime() > msLimit) {
+                console.log(`[CRON] Forfeiting game ${game.id} due to inactivity`);
+                // It's the current player's turn, so forfeit for them
+                const currentPlayerId =
+                    game.state.currentPlayer === 1 ? game.blackPlayer : game.whitePlayer;
+                const result = await GameService.forfeitGame(game.id, currentPlayerId);
+
+                // Determine winnerId after forfeit
+                let winnerId = null;
+                if (result && result.game && result.game.winner) {
+                    winnerId = result.game.winner;
+                }
+
+                io.to(game.id).emit("game_over", {
+                    gameId: game.id,
+                    winner: winnerId,
+                    isDraw: false,
+                    forfeit: true,
+                    forfeitedBy: currentPlayerId
+                });
+            }
+        }
     });
 }).catch((err) => {
     console.error("Failed to connect to MongoDB:", err);
