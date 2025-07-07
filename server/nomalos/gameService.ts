@@ -145,13 +145,8 @@ export default class GameService {
         }
 
         await GameService.updateEloAndStats(game, winnerId);
-
         await GameRepo.updateGame(game.id, game);
-
-        // Optionally archive if game is over
-        // if (newState.isOver) {
-        //     await ArchiveRepo.archiveGame(game);
-        // }
+        await ArchiveRepo.archiveGame(game);
 
         return { game, winnerId, isDraw };
     }
