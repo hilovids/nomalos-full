@@ -36,6 +36,11 @@ router.post("/login", async (req: Request, res: Response) => {
         return;
     }
 
+    if (username.length <= 3 || username.length >= 20) {
+        res.status(400).json({ error: "Username must be between 3 and 20 characters long." });
+        return;
+    }
+
     if (leoProfanity.check(username)) {
         res.status(400).json({ error: "Username contains inappropriate language." });
         return;
@@ -145,6 +150,11 @@ router.post("/set-password", authenticateJWT, async (req: Request, res: Response
         return;
     }
 
+    if (username.length <= 3 || username.length >= 20) {
+        res.status(400).json({ error: "Username must be between 3 and 20 characters long." });
+        return;
+    }
+    
     if (leoProfanity.check(username)) {
         res.status(400).json({ error: "Username contains inappropriate language." });
         return;
