@@ -77,10 +77,9 @@ function OnlineCount() {
         <section className="mb-24 bg-[#181818] rounded-lg shadow p-6 w-full">
           <h2 className="text-xl font-semibold mb-2 text-white">Planned Features</h2>
           <ol className="list-decimal list-inside text-gray-200 mb-2">
-            <li>Spectating and match teplays</li>
+            <li>Improved mobile design</li>
             <li>Vs. Computer matches</li>
             <li>Friend lists and custom games</li>
-            <li>Improved mobile design</li>
             <li>Animations and more...</li>
             <li>In-game chat</li>
             <li>ELO graph over time</li>
