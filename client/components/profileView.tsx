@@ -94,7 +94,7 @@ export function ProfileStats({
             </div>
             {/* Username and last seen */}
             <div className="flex flex-col gap-1 mb-2">
-                <h2 className="text-2xl font-bold text-[#60a5fa] break-words">{username}</h2>
+                <h2 className="text-2xl font-bold text-yellow-400 break-words">{username}</h2>
                 {lastSeen && (
                     <div className="text-gray-400 text-xs">Last seen: {formatDate(lastSeen)}</div>
                 )}

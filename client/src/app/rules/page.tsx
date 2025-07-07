@@ -9,7 +9,7 @@ export default function RulesPage() {
     <div className="flex flex-col">
       <main className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto px-4 mb-14">
         <Card className="w-full mt-8 mb-8">
-          <h1 className="text-3xl font-bold mb-4 text-[#60a5fa]">Nomalos Rules</h1>
+          <h1 className="text-3xl font-bold mb-4 text-yellow-400">Nomalos Rules</h1>
           <p className="text-gray-200 mb-4">
             <strong>Nomalos</strong> is an abstract strategy game for two players. The rules are simple, but the strategy is deep. Below are the rules for Nomalos.
           </p>

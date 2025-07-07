@@ -49,7 +49,7 @@ export default function LoginPage() {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh]">
                 <Card className="w-full max-w-md mt-8 mb-8 flex flex-col items-center">
-                    <h2 className="text-2xl font-bold mb-4 text-[#60a5fa]">You are logged in</h2>
+                    <h2 className="text-2xl font-bold mb-4 text-yellow-400">You are logged in</h2>
                     <div className="text-gray-200 mb-4">Logged in as <span className="font-semibold text-white">{user.username}</span></div>
                     <button
                         className="bg-red-600 hover:bg-red-700 text-white rounded px-4 py-2 mt-2 font-semibold transition-colors"
@@ -70,10 +70,10 @@ export default function LoginPage() {
         <div className="flex flex-col items-center justify-center min-h-[60vh]">
             <main className="flex-1 flex flex-col items-center justify-center max-w-md w-full px-4">
                 <Card className="w-full mt-8 mb-4 flex flex-col items-center">
-                    <h2 className="text-2xl font-bold mb-6 text-[#60a5fa]">Login / Register</h2>
+                    <h2 className="text-2xl font-bold mb-6 text-yellow-400">Login / Register</h2>
                     <form onSubmit={handleLogin} className="flex flex-col gap-4 w-full">
                         <input
-                            className="border border-[#333] bg-[#232323] text-white p-2 rounded focus:outline-none focus:ring-2 focus:ring-[#60a5fa] transition"
+                            className="border border-[#333] bg-[#232323] text-white p-2 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
                             placeholder="Username"
                             value={username}
                             onChange={e => setUsername(e.target.value)}
@@ -81,7 +81,7 @@ export default function LoginPage() {
                             autoComplete="username"
                         />
                         <input
-                            className="border border-[#333] bg-[#232323] text-white p-2 rounded focus:outline-none focus:ring-2 focus:ring-[#60a5fa] transition"
+                            className="border border-[#333] bg-[#232323] text-white p-2 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
                             placeholder="Password (Optional)"
                             type="password"
                             value={password}
@@ -89,7 +89,7 @@ export default function LoginPage() {
                             autoComplete="current-password"
                         />
                         <button
-                            className="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 font-semibold transition-colors"
+                            className="bg-yellow-400 hover:bg-yellow-500 text-black rounded px-4 py-2 font-semibold transition-colors"
                             disabled={loading}
                         >
                             {loading ? "Logging in..." : "Login / Register"}

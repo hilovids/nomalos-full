@@ -48,7 +48,7 @@ export default function LeaderboardPage() {
         <div className="flex flex-col mb-14">
             <main className="flex-1 flex flex-col items-center justify-center w-full px-4 sm:px-4">
                 <Card className="w-full max-w-full sm:max-w-4xl mt-8 mb-8 flex flex-col items-center">
-                    <h1 className="text-3xl font-bold mb-6 text-[#60a5fa] text-center">Leaderboard</h1>
+                    <h1 className="text-3xl font-bold mb-6 text-yellow-400 text-center">Leaderboard</h1>
                     <div className="flex justify-center mb-6 w-full">
                         <button
                             className={`px-4 py-2 rounded-l font-semibold transition-colors border border-[#333] ${timing === "short"
@@ -106,7 +106,7 @@ export default function LeaderboardPage() {
                                                         {user.username}
                                                     </Link>
                                                 </td>
-                                                <td className="py-2 px-2 font-bold text-[#60a5fa]">
+                                                <td className="py-2 px-2 font-bold text-yellow-400">
                                                     {timing === "short" ? user.shortRating : user.longRating}
                                                 </td>
                                                 <td className="py-2 px-2 text-gray-400 text-sm">

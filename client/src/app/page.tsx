@@ -60,7 +60,7 @@ export default function Home() {
         <Card className="w-full mt-0 mb-8">
           <h2 className="text-xl font-semibold mb-2 text-white">What is Nomalos?</h2>
           <p className="text-gray-200 mb-2">
-            <span className="font-bold text-[#60a5fa]">Nomalos</span> is an abstract strategy game for two players involving the placement of pieces on a board. In Nomalos, players maximize their territory through the construction of similarly colored islands containing odd numbers of pieces. The core rules of Nomalos and this web app were designed by <span className="font-bold text-[#60a5fa]">Davis Murphy</span>.
+            <span className="font-bold text-yellow-400">Nomalos</span> is an abstract strategy game for two players involving the placement of pieces on a board. In Nomalos, players maximize their territory through the construction of similarly colored islands containing odd numbers of pieces. The core rules of Nomalos and this web app were designed by <span className="font-bold text-yellow-400">Davis Murphy</span>.
           </p>
         </Card>
         <Card className="w-full mb-8">

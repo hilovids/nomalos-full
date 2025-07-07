@@ -63,7 +63,7 @@ export default function FindGamePage() {
         <div className="flex flex-col">
             <main className="flex-1 flex flex-col items-center justify-center max-w-md mx-auto px-4">
                 <Card className="w-full mt-8 mb-8 flex flex-col items-center">
-                    <h2 className="text-2xl font-bold mb-6 text-[#60a5fa]">Find a Match</h2>
+                    <h2 className="text-2xl font-bold mb-6 text-yellow-400">Find a Match</h2>
                     <div className="mb-6 w-full flex flex-col items-center">
                         <label htmlFor="timing" className="block text-gray-300 mb-2 font-medium">
                             Match Type
