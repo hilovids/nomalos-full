@@ -32,6 +32,17 @@ export default function GamePage() {
         setShowForfeitConfirm(true);
     }
 
+    function getPlayerScores() {
+        // 1 = black, 2 = white
+        let black = 0, white = 0;
+        if (!Array.isArray(spaces)) return { black, white };
+        for (const cell of spaces) {
+            if (cell === 1) black++;
+            if (cell === 2) white++;
+        }
+        return { black, white };
+    }
+
     function confirmForfeit() {
         setShowForfeitConfirm(false);
         socket.emit("forfeit_game", { gameId, userId: user.id });
@@ -85,6 +96,8 @@ export default function GamePage() {
     // For demonstration, default to 11x11 if no game loaded
     const boardSize = game?.state?.board?.size || 11;
     const spaces: number[] = game?.state?.board?.spaces || Array(boardSize * boardSize).fill(0);
+
+    const { black: blackScore, white: whiteScore } = getPlayerScores();
 
     // Determine if it's the user's turn
     const isMyTurn = game && user && (
@@ -149,6 +162,10 @@ export default function GamePage() {
             }
         }
     }
+
+    const lastMoveIdx = game?.state?.moveList?.length
+        ? game.state.moveList[game.state.moveList.length - 1]
+        : null;
 
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -425,38 +442,44 @@ export default function GamePage() {
                             <tbody>
                                 {Array.from({ length: boardSize }).map((_, rowIdx) => (
                                     <tr key={rowIdx}>
-                                        {getRow(rowIdx).map((cell: number, colIdx: number) => (
-                                            <td
-                                                key={colIdx}
-                                                className={`
+                                        {getRow(rowIdx).map((cell: number, colIdx: number) => {
+                                            const idx = rowIdx * boardSize + colIdx;
+                                            // Only highlight last move if the game is NOT over
+                                            const isLastMove = !game?.state?.isOver && idx === lastMoveIdx;
+                                            return (
+                                                <td
+                                                    key={colIdx}
+                                                    className={`
                                                     w-8 h-8 border select-none text-center align-middle
                                                     ${cell === 0 && isMyTurn && !game?.state?.isOver && isConnected ? "hover:bg-amber-700/40 cursor-pointer" : ""}
                                                     ${cell === 3 ? "bg-gray-300 text-gray-500 cursor-not-allowed" : ""}
+                                                    ${isLastMove ? "bg-green-400/80" : ""}
                                                 `}
-                                                style={{
-                                                    minWidth: 32,
-                                                    minHeight: 32,
-                                                    padding: 0,
-                                                    verticalAlign: "middle",
-                                                    borderColor: "#633f2559"
-                                                }}
-                                                onClick={() => cell === 0 ? handleCellClick(rowIdx, colIdx) : undefined}
-                                            >
-                                                {cell === 1 ? (
-                                                    <svg width="24" height="24" viewBox="0 0 24 24" style={{ display: "inline-block" }}>
-                                                        <circle cx="12" cy="12" r="10" fill="#22272b" stroke="black" strokeWidth="2" />
-                                                    </svg>
-                                                ) : cell === 2 ? (
-                                                    <svg width="24" height="24" viewBox="0 0 24 24" style={{ display: "inline-block" }}>
-                                                        <circle cx="12" cy="12" r="10" fill="white" stroke="#888" strokeWidth="2" />
-                                                    </svg>
-                                                ) : cell === 3 ? (
-                                                    <span style={{ fontSize: 20, fontWeight: "bold" }}>✕</span>
-                                                ) : (
-                                                    ""
-                                                )}
-                                            </td>
-                                        ))}
+                                                    style={{
+                                                        minWidth: 32,
+                                                        minHeight: 32,
+                                                        padding: 0,
+                                                        verticalAlign: "middle",
+                                                        borderColor: "#633f2559"
+                                                    }}
+                                                    onClick={() => cell === 0 ? handleCellClick(rowIdx, colIdx) : undefined}
+                                                >
+                                                    {cell === 1 ? (
+                                                        <svg width="24" height="24" viewBox="0 0 24 24" style={{ display: "inline-block" }}>
+                                                            <circle cx="12" cy="12" r="10" fill="#22272b" stroke="black" strokeWidth="2" />
+                                                        </svg>
+                                                    ) : cell === 2 ? (
+                                                        <svg width="24" height="24" viewBox="0 0 24 24" style={{ display: "inline-block" }}>
+                                                            <circle cx="12" cy="12" r="10" fill="white" stroke="#888" strokeWidth="2" />
+                                                        </svg>
+                                                    ) : cell === 3 ? (
+                                                        <span style={{ fontSize: 20, fontWeight: "bold" }}>✕</span>
+                                                    ) : (
+                                                        ""
+                                                    )}
+                                                </td>
+                                            );
+                                        })}
                                     </tr>
                                 ))}
                             </tbody>
@@ -524,22 +547,24 @@ export default function GamePage() {
                             }}
                         >
                             {game?.state?.moveList?.length > 0 ? (
-                                game.state.moveList.map((move: any, idx: number) => {
-                                    const isBlack = idx % 2 === 0;
+                                // Group moves into pairs: [black, white], [black, white], ...
+                                Array.from({ length: Math.ceil(game.state.moveList.length / 2) }).map((_, idx) => {
+                                    const blackMove = game.state.moveList[idx * 2];
+                                    const whiteMove = game.state.moveList[idx * 2 + 1];
                                     return (
                                         <li key={idx} className="mb-1 flex items-center gap-2">
                                             <span className="font-bold">{idx + 1}.</span>
                                             <span>
-                                                {isBlack ? (
-                                                    <svg width="14" height="14" viewBox="0 0 24 24" className="inline align-middle mr-1">
-                                                        <circle cx="12" cy="12" r="10" fill="#22272b" stroke="black" strokeWidth="2" />
-                                                    </svg>
-                                                ) : (
-                                                    <svg width="14" height="14" viewBox="0 0 24 24" className="inline align-middle mr-1">
-                                                        <circle cx="12" cy="12" r="10" fill="white" stroke="#888" strokeWidth="2" />
-                                                    </svg>
-                                                )}
-                                                {formatMove(move)}
+                                                <svg width="14" height="14" viewBox="0 0 24 24" className="inline align-middle mr-1">
+                                                    <circle cx="12" cy="12" r="10" fill="#22272b" stroke="black" strokeWidth="2" />
+                                                </svg>
+                                                {blackMove !== undefined ? formatMove(blackMove) : "--"}
+                                            </span>
+                                            <span>
+                                                <svg width="14" height="14" viewBox="0 0 24 24" className="inline align-middle mr-1">
+                                                    <circle cx="12" cy="12" r="10" fill="white" stroke="#888" strokeWidth="2" />
+                                                </svg>
+                                                {whiteMove !== undefined ? formatMove(whiteMove) : "--"}
                                             </span>
                                         </li>
                                     );
@@ -549,7 +574,6 @@ export default function GamePage() {
                             )}
                         </ol>
                     </div>
-
                     <style jsx global>{`
                         .custom-scrollbar {
                             scrollbar-width: thin;
@@ -606,6 +630,7 @@ export default function GamePage() {
                     <svg className="nomalos-player-piece" viewBox="0 0 24 24">
                         <circle cx="12" cy="12" r="10" fill="#22272b" stroke="black" strokeWidth="2" />
                     </svg>
+                    <span className="ml-2 text-yellow-400 font-bold">[Spaces: {blackScore}]</span>
                     <span className="font-semibold">
                         {game?.playerUsernames && game?.players ? (
                             <Link
@@ -629,6 +654,7 @@ export default function GamePage() {
                     <svg className="nomalos-player-piece" viewBox="0 0 24 24">
                         <circle cx="12" cy="12" r="10" fill="white" stroke="#888" strokeWidth="2" />
                     </svg>
+                    <span className="ml-2 text-yellow-400 font-bold">[Spaces: {whiteScore}]</span>
                     <span className="font-semibold">
                         {game?.playerUsernames && game?.players ? (
                             <Link

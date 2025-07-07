@@ -142,11 +142,11 @@ export default class GameService {
                 winnerId = game.whitePlayer;
             }
             game.winner = winnerId;
+            await GameService.updateEloAndStats(game, winnerId);
+            await ArchiveRepo.archiveGame(game);
         }
-
-        await GameService.updateEloAndStats(game, winnerId);
+        
         await GameRepo.updateGame(game.id, game);
-        await ArchiveRepo.archiveGame(game);
 
         return { game, winnerId, isDraw };
     }
