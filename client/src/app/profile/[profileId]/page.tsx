@@ -246,7 +246,7 @@ export default function ProfileIdPage() {
                         href={`/game/${game.id}`}
                         className="bg-[#3fae49] hover:bg-[#2e8c36] text-white px-3 py-1 rounded text-sm font-semibold transition"
                       >
-                        View
+                        {game.state?.isOver ? "View" : "Spectate"}
                       </Link>
                     </td>
                   </tr>
