@@ -28,7 +28,7 @@ export default function GamePage() {
     });
 
     function handleForfeit() {
-        if (!game || !user) return;
+        if (!game || !user || !isPlayer) return;
         setShowForfeitConfirm(true);
     }
 
@@ -92,6 +92,7 @@ export default function GamePage() {
 
     // Get user info from localStorage
     const user = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("user") || "null") : null;
+    const isPlayer = user && (user.id === game?.blackPlayer || user.id === game?.whitePlayer);
 
     // For demonstration, default to 11x11 if no game loaded
     const boardSize = game?.state?.board?.size || 11;
@@ -113,9 +114,10 @@ export default function GamePage() {
             return;
         }
         if (!game || !user || !isMyTurn || game.state.isOver) return;
+        // Only allow moves if user is a player
+        if (!isPlayer) return;
         const idx = rowIdx * boardSize + colIdx;
-        if (spaces[idx] !== 0) return; // Only allow moves on empty cells
-
+        if (spaces[idx] !== 0) return;
         setError("");
         socket.emit("move", {
             gameId,
@@ -189,7 +191,11 @@ export default function GamePage() {
             } else {
                 document.title = "Game | Nomalos";
             }
-        } else if (isMyTurn) {
+        }
+        else if (!isPlayer) {
+            document.title = "Spectating Game | Nomalos";
+        }
+        else if (isMyTurn) {
             document.title = "Your Turn | Nomalos";
         } else {
             document.title = "Opponent's Turn | Nomalos";
@@ -378,50 +384,56 @@ export default function GamePage() {
             {/* Game Status */}
             <div className="mb-4 text-center">
                 {game?.state?.isOver ? (
-                    <>
-                        <span className="text-yellow-300 font-bold">Game Over</span>
-                        <div className="mt-2 text-base">
-                            {user && (user.id === game?.blackPlayer || user.id === game?.whitePlayer) ? (
-                                game.winner === user.id ? (
+                    isPlayer ? (
+                        <>
+                            <span className="text-yellow-300 font-bold">Game Over</span>
+                            <div className="mt-2 text-base">
+                                {game.winner === user.id ? (
                                     <span className="text-green-400 font-semibold">You won!</span>
                                 ) : game.winner === null ? (
                                     <span className="text-yellow-300 font-semibold">Draw</span>
                                 ) : (
                                     <span className="text-red-400 font-semibold">You lost...</span>
-                                )
-                            ) : (
-                                <>
-                                    {game.winner === null ? (
-                                        <span className="text-yellow-300 font-semibold">Draw</span>
-                                    ) : (
-                                        <>
-                                            <span className="text-green-400 font-semibold">
-                                                {game?.blackPlayerUsername === undefined || game?.whitePlayerUsername === undefined
-                                                    ? "Winner: " + (game.winner === game.blackPlayer ? "Black" : "White")
-                                                    : `Winner: ${game.winner === game.blackPlayer ? game.blackPlayerUsername : game.whitePlayerUsername}`}
-                                            </span>
-                                            <br />
-                                            <span className="text-red-400 font-semibold">
-                                                {game?.blackPlayerUsername === undefined || game?.whitePlayerUsername === undefined
-                                                    ? "Loser: " + (game.winner === game.blackPlayer ? "White" : "Black")
-                                                    : `Loser: ${game.winner === game.blackPlayer ? game.whitePlayerUsername : game.blackPlayerUsername}`}
-                                            </span>
-                                        </>
-                                    )}
-                                </>
-                            )}
-                        </div>
-                    </>
-                ) : isMyTurn ? (
-                    <span className="text-green-400 font-bold">YOUR TURN</span>
+                                )}
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <span className="text-yellow-300 font-bold">Spectating Game</span>
+                            <div className="mt-2 text-base">
+                                {game.winner === null ? (
+                                    <span className="text-yellow-300 font-semibold">Draw</span>
+                                ) : (
+                                    <>
+                                        <span className="text-green-400 font-semibold">
+                                            {game?.blackPlayerUsername === undefined || game?.whitePlayerUsername === undefined
+                                                ? "Winner: " + (game.winner === game.blackPlayer ? "Black" : "White")
+                                                : `Winner: ${game.winner === game.blackPlayer ? game.blackPlayerUsername : game.whitePlayerUsername}`}
+                                        </span>
+                                        <br />
+                                        <span className="text-red-400 font-semibold">
+                                            {game?.blackPlayerUsername === undefined || game?.whitePlayerUsername === undefined
+                                                ? "Loser: " + (game.winner === game.blackPlayer ? "White" : "Black")
+                                                : `Loser: ${game.winner === game.blackPlayer ? game.whitePlayerUsername : game.blackPlayerUsername}`}
+                                        </span>
+                                    </>
+                                )}
+                            </div>
+                        </>
+                    )
+                ) : isPlayer ? (
+                    isMyTurn ? (
+                        <span className="text-green-400 font-bold">YOUR TURN</span>
+                    ) : (
+                        <span className="text-gray-400">Opponent's turn</span>
+                    )
                 ) : (
-                    <span className="text-gray-400">Opponent's turn</span>
+                    <span className="text-yellow-300 font-bold">Spectating Game</span>
                 )}
                 {!isConnected && (
                     <div className="text-orange-400 mt-1">Disconnected. Attempting to reconnect...</div>
                 )}
                 {error && <div className="text-red-400 mt-1">{error}</div>}
-
             </div>
 
             {/* Board + Side Panel */}
@@ -493,44 +505,48 @@ export default function GamePage() {
                 >
                     <div className="bg-[#181818] rounded-lg shadow p-3 mb-2">
                         <div className="font-semibold text-[#60a5fa] mb-1 text-center text-sm">ELO Preview</div>
-                        {game?.rated ? (
-                            (() => {
-                                if (game?.state?.isOver && game?.eloChanges && user) {
-                                    const change = game.eloChanges[user.id] ?? 0;
-                                    return (
-                                        <div className="text-center text-lg">
-                                            <span className={change > 0 ? "text-green-400" : change < 0 ? "text-red-400" : "text-yellow-300"}>
-                                                {change > 0 ? "+" : ""}{change}
-                                            </span>
-                                        </div>
-                                    );
-                                }
-                                // Use game.eloOutcomes for preview
-                                if (user && game.eloOutcomes && game.eloOutcomes[user.id]) {
-                                    const preview = game.eloOutcomes[user.id];
-                                    return (
-                                        <div className="flex flex-col items-center text-xs text-gray-200">
-                                            <div>
-                                                <span className="font-bold text-green-400">Win:</span>{" "}
-                                                <span className={preview.win >= 0 ? "text-green-400" : "text-red-400"}>
-                                                    {preview.win > 0 ? "+" : ""}{preview.win}
+                        {isPlayer ? (
+                            game?.rated ? (
+                                (() => {
+                                    if (game?.state?.isOver && game?.eloChanges && user) {
+                                        const change = game.eloChanges[user.id] ?? 0;
+                                        return (
+                                            <div className="text-center text-lg">
+                                                <span className={change > 0 ? "text-green-400" : change < 0 ? "text-red-400" : "text-yellow-300"}>
+                                                    {change > 0 ? "+" : ""}{change}
                                                 </span>
                                             </div>
-                                            <div>
-                                                <span className="font-bold text-red-400">Loss:</span>{" "}
-                                                <span className={preview.loss >= 0 ? "text-green-400" : "text-red-400"}>
-                                                    {preview.loss > 0 ? "+" : ""}{preview.loss}
-                                                </span>
+                                        );
+                                    }
+                                    // Use game.eloOutcomes for preview
+                                    if (user && game.eloOutcomes && game.eloOutcomes[user.id]) {
+                                        const preview = game.eloOutcomes[user.id];
+                                        return (
+                                            <div className="flex flex-col items-center text-xs text-gray-200">
+                                                <div>
+                                                    <span className="font-bold text-green-400">Win:</span>{" "}
+                                                    <span className={preview.win >= 0 ? "text-green-400" : "text-red-400"}>
+                                                        {preview.win > 0 ? "+" : ""}{preview.win}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <span className="font-bold text-red-400">Loss:</span>{" "}
+                                                    <span className={preview.loss >= 0 ? "text-green-400" : "text-red-400"}>
+                                                        {preview.loss > 0 ? "+" : ""}{preview.loss}
+                                                    </span>
+                                                </div>
                                             </div>
-                                        </div>
+                                        );
+                                    }
+                                    return (
+                                        <div className="text-gray-400 text-xs text-center">Unable to calculate</div>
                                     );
-                                }
-                                return (
-                                    <div className="text-gray-400 text-xs text-center">Unable to calculate</div>
-                                );
-                            })()
+                                })()
+                            ) : (
+                                <div className="text-gray-400 text-xs text-center">Unrated game</div>
+                            )
                         ) : (
-                            <div className="text-gray-400 text-xs text-center">Unrated game</div>
+                            <div className="text-gray-400 text-xs text-center">Spectating: ELO preview unavailable</div>
                         )}
                     </div>
 
@@ -608,14 +624,16 @@ export default function GamePage() {
                                 {formatTime(timeLeft)}
                             </span>
                         )}
-                        <button
-                            onClick={handleForfeit}
-                            disabled={game?.state?.isOver}
-                            className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors shadow disabled:opacity-60"
-                            style={{ minWidth: 120 }}
-                        >
-                            Forfeit
-                        </button>
+                        {isPlayer && (
+                            <button
+                                onClick={handleForfeit}
+                                disabled={game?.state?.isOver}
+                                className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors shadow disabled:opacity-60"
+                                style={{ minWidth: 120 }}
+                            >
+                                Forfeit
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
