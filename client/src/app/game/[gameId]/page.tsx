@@ -612,7 +612,7 @@ export default function GamePage() {
                             <span
                                 className={`mr-2 px-3 py-1 rounded font-mono text-sm border border-gray-300`}
                                 style={{
-                                    background: "#fff",
+                                    background: isMyTurn && isPlayer ? "#fff" : "#e5e7eb", // <-- light gray if not your turn
                                     color: timeLeft < 60_000 ? "#dc2626" : "#111",
                                     fontWeight: 600,
                                     minWidth: game?.timing === "short" ? 60 : 90,
