@@ -179,8 +179,13 @@ export default class GameService {
         game.state.winner = winnerId === game.blackPlayer ? 1 : 2;
         game.winner = winnerId;
         game.updatedAt = new Date();
-
-        await GameService.updateEloAndStats(game, winnerId);
+        game.wasForfeited = true;
+        if( game.state.moveList.length < 5) {
+            game.wasAborted = true;
+        }
+        else{
+            await GameService.updateEloAndStats(game, winnerId);
+        }
         await GameRepo.updateGame(game.id, game);
         await ArchiveRepo.archiveGame(game);
 

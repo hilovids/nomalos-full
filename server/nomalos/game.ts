@@ -29,6 +29,8 @@ export type Game = {
     eloChanges?: {
         [userId: string]: number;
     };
+    wasForfeited?: boolean;
+    wasAborted?: boolean;
 };
 export type ArchivedGame = {
     id?: string;

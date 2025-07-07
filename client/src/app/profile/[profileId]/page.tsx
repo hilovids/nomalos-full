@@ -9,6 +9,7 @@ function formatDate(dateStr: string) {
 }
 
 function getResult(game: any, userId: string) {
+  if (game.wasAborted) return { label: "Aborted", color: "text-gray-400", icon: "🏳️" };
   if (!game.state?.isOver) return { label: "In Progress", color: "text-gray-400", icon: "⏳" };
   if (!userId) return { label: "—", color: "text-gray-400", icon: "" };
   if (game.winner === userId) return { label: "Win", color: "text-green-400", icon: "✔️" };

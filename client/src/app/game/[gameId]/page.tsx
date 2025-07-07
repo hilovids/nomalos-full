@@ -284,7 +284,7 @@ export default function GamePage() {
                 <div className="text-center">
                     <div className="text-xl font-bold text-red-400 mb-2">Forfeit Game</div>
                     <div className="text-base text-gray-200 mb-4">
-                        Are you sure you want to forfeit this game? This will count as a loss.
+                        Are you sure you want to forfeit this game? This will count as a loss unless less than 5 moves have been played.
                     </div>
                     <div className="flex justify-center gap-4">
                         <button
@@ -305,6 +305,16 @@ export default function GamePage() {
             >
                 <div className="text-center">
                     <div className="text-2xl font-bold text-[#60a5fa] mb-2">Game Over</div>
+                    {/* Win/Loss/Draw Text */}
+                    {user && game ? (
+                        game.winner === user.id ? (
+                            <div className="text-green-400 text-lg font-semibold mb-4">You won!</div>
+                        ) : game.wasAborted ? (
+                            <div className="text-yellow-300 text-lg font-semibold mb-4">Game Aborted</div>
+                        ) : (
+                            <div className="text-red-400 text-lg font-semibold mb-4">You lost...</div>
+                        )
+                    ) : null}
                     <div className="mt-6">
                         <button
                             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-semibold shadow"
