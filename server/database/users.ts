@@ -41,7 +41,7 @@ export async function getLeaderboard(gameTiming: GameTiming): Promise<User[]> {
 // Get a user by username
 export async function getUserByUsername(username: string): Promise<User | null> {
     const db = getDb();
-    const user = await db.collection<User>(COLLECTION).findOne({ username });
+    const user = await db.collection<User>(COLLECTION).findOne({ username: { $regex: `^${username}$`, $options: "i" } });
     if (!user) return null;
     return { ...user, id: user._id?.toString() };
 }
