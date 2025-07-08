@@ -4,6 +4,291 @@ import { useParams, useRouter } from "next/navigation";
 import { getSocket } from "@/lib/socket";
 import Link from "next/link";
 
+function PlayerBanner({
+    game, user, isMyTurn, timeLeft, formatTime, blackScore, whiteScore
+}: {
+    game: any; user: any; isMyTurn: boolean; timeLeft: number | null; formatTime: (ms: number) => string;
+    blackScore: number; whiteScore: number;
+}) {
+    if (!game) return null;
+    const blackId = game.players?.[0];
+    const whiteId = game.players?.[1];
+    const blackName = game.playerUsernames?.[0] || "Black";
+    const whiteName = game.playerUsernames?.[1] || "White";
+    return (
+        <div className="flex flex-col items-center w-full max-w-lg mx-auto mt-4 mb-3 px-4">
+            <div className="bg-[#181818] rounded-lg shadow px-3 py-2 w-full flex flex-col items-center">
+                {/* Names row */}
+                <div className="relative flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2">
+                        <svg width="18" height="18" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" fill="#22272b" stroke="black" strokeWidth="2" />
+                        </svg>
+                        <Link href={`/profile/${blackId}`} className="font-semibold text-white hover:underline truncate max-w-[6rem]">{blackName}</Link>
+                        {/* "You" badge for black, right before the center line */}
+                        {user && user.id === blackId && (
+                            <span className="ml-1 mr-2 text-xs bg-green-700 text-white px-1.5 py-0.5 rounded whitespace-nowrap">
+                                You
+                            </span>
+                        )}
+                    </div>
+                    {/* Centered vertical line */}
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none">
+                        <div className="w-px h-6 bg-gray-500 opacity-60 mx-2" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {/* "You" badge for white, just after the center line */}
+                        {user && user.id === whiteId && (
+                            <span className="mr-1 ml-2 text-xs bg-green-700 text-white px-1.5 py-0.5 rounded whitespace-nowrap">
+                                You
+                            </span>
+                        )}
+                        <svg width="18" height="18" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" fill="white" stroke="#888" strokeWidth="2" />
+                        </svg>
+                        <Link href={`/profile/{whiteId}`} className="font-semibold text-white hover:underline truncate max-w-[6rem]">{whiteName}</Link>
+                    </div>
+                </div>
+                {/* Scores and timer row */}
+                <div className="flex items-center justify-between w-full px-6 mt-2 text-yellow-400 font-semibold text-sm">
+                    <span>Black: {blackScore}</span>
+                    {typeof timeLeft === "number" && !game?.state?.isOver && (
+                        <span className="px-3 py-1 rounded font-mono text-sm bg-white text-black font-bold border border-yellow-400 mx-2">
+                            {formatTime(timeLeft)}
+                        </span>
+                    )}
+                    <span>White: {whiteScore}</span>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function BoardWithHeaders({ boardSize, spaces, handleCellClick, isMyTurn, game, lastMoveIdx, isConnected }: any) {
+    // Column headers: A, B, C, ...
+    const colHeaders = Array.from({ length: boardSize }, (_, i) => String.fromCharCode(65 + i));
+    // Responsive cell size: 25px on mobile, 40px on desktop
+    const cellSize = typeof window !== "undefined" && window.innerWidth < 640 ? 25 : 40;
+
+    return (
+        <div className="relative flex flex-col items-center">
+            {/* Column headers */}
+            <div className="flex ml-[8vw] sm:ml-[26px]">
+                <div className="w-0 h-0" /> {/* empty corner */}
+                {colHeaders.map((c, i) => (
+                    <div
+                        key={i}
+                        className="flex items-center justify-center text-xs text-gray-400 select-none"
+                        style={{
+                            width: cellSize,
+                            minWidth: cellSize,
+                            maxWidth: cellSize,
+                            height: 24,
+                        }}
+                    >
+                        {c}
+                    </div>
+                ))}
+            </div>
+            <div className="flex">
+                {/* Row headers */}
+                <div className="flex flex-col">
+                    {Array.from({ length: boardSize }).map((_, i) => (
+                        <div
+                            key={i}
+                            className="flex items-center justify-center text-xs text-gray-400 select-none"
+                            style={{
+                                height: cellSize,
+                                minHeight: cellSize + 1,
+                                maxHeight: cellSize + 1,
+                                width: 24,
+                            }}
+                        >
+                            {i + 1}
+                        </div>
+                    ))}
+                </div>
+                {/* Board */}
+                <div
+                    className=""
+                    style={{
+                        background: "repeating-linear-gradient(135deg, #f9e4b7, #f9e4b7 37.5px, #f5d399 37.5px, #f5d399 75px)",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                        borderRadius: "12px",
+                        display: "inline-block",
+                        padding: "8px",
+                        maxWidth: "100%",
+                        backgroundPosition: "center center"
+                    }}
+                >
+                    <table className="border-collapse mx-auto" style={{ tableLayout: "fixed" }}>
+                        <tbody>
+                            {Array.from({ length: boardSize }).map((_, rowIdx) => (
+                                <tr key={rowIdx}>
+                                    {Array.from({ length: boardSize }).map((_, colIdx) => {
+                                        const idx = rowIdx * boardSize + colIdx;
+                                        const cell = spaces[idx];
+                                        const isLastMove = !game?.state?.isOver && idx === lastMoveIdx;
+                                        return (
+                                            <td
+                                                key={colIdx}
+                                                className={`
+                                                    border select-none text-center align-middle
+                                                    ${cell === 0 && isMyTurn && !game?.state?.isOver && isConnected ? "hover:bg-amber-700/40 cursor-pointer" : ""}
+                                                    ${cell === 3 ? "bg-gray-300 text-gray-500 cursor-not-allowed" : ""}
+                                                    ${isLastMove ? "bg-green-400/80" : ""}
+                                                `}
+                                                style={{
+                                                    width: cellSize,
+                                                    minWidth: cellSize,
+                                                    maxWidth: cellSize,
+                                                    height: cellSize,
+                                                    minHeight: cellSize,
+                                                    maxHeight: cellSize,
+                                                    padding: 0,
+                                                    verticalAlign: "middle",
+                                                    borderColor: "#633f2559"
+                                                }}
+                                                onClick={() => cell === 0 ? handleCellClick(rowIdx, colIdx) : undefined}
+                                            >
+                                                {cell === 1 ? (
+                                                    <svg width={cellSize - 4} height={cellSize - 4} viewBox="0 0 24 24" style={{ display: "inline-block" }}>
+                                                        <circle cx="12" cy="12" r="10" fill="#22272b" stroke="black" strokeWidth="2" />
+                                                    </svg>
+                                                ) : cell === 2 ? (
+                                                    <svg width={cellSize - 4} height={cellSize - 4} viewBox="0 0 24 24" style={{ display: "inline-block" }}>
+                                                        <circle cx="12" cy="12" r="10" fill="white" stroke="#888" strokeWidth="2" />
+                                                    </svg>
+                                                ) : cell === 3 ? (
+                                                    <span style={{ fontSize: cellSize * 0.7, fontWeight: "bold" }}>✕</span>
+                                                ) : (
+                                                    // Invisible SVG to keep cell size
+                                                    <svg width={cellSize - 4} height={cellSize - 4} viewBox="0 0 24 24" style={{ visibility: "hidden", display: "inline-block" }}>
+                                                        <circle cx="12" cy="12" r="10" />
+                                                    </svg>
+                                                )}
+                                            </td>
+                                        );
+                                    })}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function EloPreview({ game, user }: { game: any; user: any }) {
+    if (!game) return null;
+    return (
+        <div className="bg-[#181818] rounded-lg shadow p-3 mb-2 max-w-xs w-full mx-auto">
+            <div className="font-semibold text-yellow-400 mb-1 text-center text-sm">ELO Preview</div>
+            {user && (user.id === game.blackPlayer || user.id === game.whitePlayer) ? (
+                game?.rated ? (
+                    (() => {
+                        if (game?.state?.isOver && game?.eloChanges && user) {
+                            const change = game.eloChanges[user.id] ?? 0;
+                            return (
+                                <div className="text-center text-lg">
+                                    <span className={change > 0 ? "text-green-400" : change < 0 ? "text-red-400" : "text-yellow-300"}>
+                                        {change > 0 ? "+" : ""}{change}
+                                    </span>
+                                </div>
+                            );
+                        }
+                        if (user && game.eloOutcomes && game.eloOutcomes[user.id]) {
+                            const preview = game.eloOutcomes[user.id];
+                            return (
+                                <div className="flex flex-col items-center text-xs text-gray-200">
+                                    <div>
+                                        <span className="font-bold text-green-400">Win:</span>{" "}
+                                        <span className={preview.win >= 0 ? "text-green-400" : "text-red-400"}>
+                                            {preview.win > 0 ? "+" : ""}{preview.win}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span className="font-bold text-red-400">Loss:</span>{" "}
+                                        <span className={preview.loss >= 0 ? "text-green-400" : "text-red-400"}>
+                                            {preview.loss > 0 ? "+" : ""}{preview.loss}
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        }
+                        return (
+                            <div className="text-gray-400 text-xs text-center">Unable to calculate</div>
+                        );
+                    })()
+                ) : (
+                    <div className="text-gray-400 text-xs text-center">Unrated game</div>
+                )
+            ) : (
+                <div className="text-gray-400 text-xs text-center">Spectating: ELO preview unavailable</div>
+            )}
+        </div>
+    );
+}
+
+function MoveHistory({ game, formatMove }: { game: any; formatMove: (move: any) => string }) {
+    return (
+        <div className="bg-[#181818] rounded-lg shadow p-2 max-w-xs mx-auto" style={{ height: "12rem" }}>
+            <div className="font-semibold text-yellow-400 mb-2 text-center text-sm">Move History</div>
+            <ol
+                className="text-xs text-gray-200 overflow-y-auto pr-2 custom-scrollbar"
+                style={{
+                    height: "calc(12rem - 2.5rem)",
+                    minHeight: "3rem",
+                    scrollbarWidth: "thin",
+                    scrollbarColor: "#fdca33 #232323"
+                }}
+            >
+                {game?.state?.moveList?.length > 0 ? (
+                    Array.from({ length: Math.ceil(game.state.moveList.length / 2) }).map((_, idx) => {
+                        const blackMove = game.state.moveList[idx * 2];
+                        const whiteMove = game.state.moveList[idx * 2 + 1];
+                        return (
+                            <li key={idx} className="mb-1 flex items-center justify-center gap-2">
+                                <span className="font-bold">{idx + 1}.</span>
+                                <span>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" className="inline align-middle mr-1">
+                                        <circle cx="12" cy="12" r="10" fill="#22272b" stroke="black" strokeWidth="2" />
+                                    </svg>
+                                    {blackMove !== undefined ? formatMove(blackMove) : "--"}
+                                </span>
+                                <span>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" className="inline align-middle mr-1">
+                                        <circle cx="12" cy="12" r="10" fill="white" stroke="#888" strokeWidth="2" />
+                                    </svg>
+                                    {whiteMove !== undefined ? formatMove(whiteMove) : "--"}
+                                </span>
+                            </li>
+                        );
+                    })
+                ) : (
+                    <li className="text-gray-400">No moves yet.</li>
+                )}
+            </ol>
+            <style jsx global>{`
+                .custom-scrollbar {
+                    scrollbar-width: thin;
+                    scrollbar-color: #fdca33 #232323;
+                }
+                .custom-scrollbar::-webkit-scrollbar {
+                    width: 8px;
+                    background: #232323;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb {
+                    background: #fdca33;
+                    border-radius: 4px;
+                }
+            `}
+            </style>
+        </div>
+    );
+}
+
 export default function GamePage() {
     const { gameId } = useParams();
     const [game, setGame] = useState<any>(null);
@@ -18,6 +303,9 @@ export default function GamePage() {
     const [showForfeitConfirm, setShowForfeitConfirm] = useState(false);
     const [timeLeft, setTimeLeft] = useState<number | null>(null);
     const thunkAudioRef = useRef<HTMLAudioElement | null>(null);
+    const [screenIsMobile, setScreenIsMobile] = useState(
+        typeof window !== "undefined" ? window.innerWidth < 640 : false
+    );
 
     const [soundOn, setSoundOn] = useState<boolean>(() => {
         if (typeof window !== "undefined") {
@@ -26,6 +314,15 @@ export default function GamePage() {
         }
         return true;
     });
+
+    useEffect(() => {
+        function handleResize() {
+            setScreenIsMobile(window.innerWidth < 640);
+        }
+        window.addEventListener("resize", handleResize);
+        handleResize();
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
 
     function handleForfeit() {
         if (!game || !user || !isPlayer) return;
@@ -294,9 +591,7 @@ export default function GamePage() {
     const boardHeight = boardSize * cellPx + boardPadding;
 
     return (
-        <div className="min-h-screen bg-[#232323] flex flex-col items-center py-8"
-            style={{ paddingTop: "88px" }}
-        >
+        <div className="min-h-screen bg-[#232323] flex flex-col items-center">
             <audio ref={thunkAudioRef} src="/thunk.wav" preload="auto" style={{ display: "none" }} />
 
             {/* Forfeit Confirmation Modal */}
@@ -327,7 +622,7 @@ export default function GamePage() {
                 }}
             >
                 <div className="text-center">
-                    <div className="text-2xl font-bold text-[#60a5fa] mb-2">Game Over</div>
+                    <div className="text-2xl font-bold text-yellow-400 mb-2">Game Over</div>
                     {/* Win/Loss/Draw Text */}
                     {user && game ? (
                         game.winner === user.id ? (
@@ -338,6 +633,10 @@ export default function GamePage() {
                             <div className="text-red-400 text-lg font-semibold mb-4">You lost...</div>
                         )
                     ) : null}
+                    {/* Final Score */}
+                    <div className="text-gray-200 text-base font-semibold mb-4">
+                        Final Score: <span className="text-yellow-400">Black {blackScore}</span> - <span className="text-yellow-400">White {whiteScore}</span>
+                    </div>
                     <div className="mt-6">
                         <button
                             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-semibold shadow"
@@ -360,338 +659,104 @@ export default function GamePage() {
                 </div>
             </Modal>
 
-            {/* Sound Toggle */}
-            <button
-                aria-label="Toggle sound"
-                onClick={toggleSound}
-                className="self-end mr-10 p-2 rounded-full bg-[#232323] hover:bg-[#333] transition"
-                title={soundOn ? "Mute sounds" : "Enable sounds"}
-            >
-                {soundOn ? (
-                    <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M5 14h2l3 3V7l-3 3H5v4z" />
-                        <path d="M15 9a3 3 0 010 6" />
-                        <path d="M17.5 6.5a7 7 0 010 11" />
-                    </svg>
-                ) : (
-                    <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M5 14h2l3 3V7l-3 3H5v4z" />
-                        <line x1="19" y1="5" x2="5" y2="19" stroke="red" strokeWidth="2" />
-                    </svg>
-                )}
-            </button>
+            {/* Player Banner */}
+            <PlayerBanner
+                game={game}
+                user={user}
+                isMyTurn={isMyTurn}
+                timeLeft={timeLeft}
+                formatTime={formatTime}
+                blackScore={blackScore}
+                whiteScore={whiteScore}
+            />
 
-            {/* Game Status */}
-            <div className="mb-4 text-center">
-                {game?.state?.isOver ? (
-                    isPlayer ? (
-                        <>
-                            <span className="text-yellow-300 font-bold">Game Over</span>
-                            <div className="mt-2 text-base">
-                                {game.winner === user.id ? (
-                                    <span className="text-green-400 font-semibold">You won!</span>
-                                ) : game.winner === null ? (
-                                    <span className="text-yellow-300 font-semibold">Draw</span>
-                                ) : (
-                                    <span className="text-red-400 font-semibold">You lost...</span>
-                                )}
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                            <span className="text-yellow-300 font-bold">Spectating Game</span>
-                            <div className="mt-2 text-base">
-                                {game.winner === null ? (
-                                    <span className="text-yellow-300 font-semibold">Draw</span>
-                                ) : (
-                                    <>
-                                        <span className="text-green-400 font-semibold">
-                                            {game?.blackPlayerUsername === undefined || game?.whitePlayerUsername === undefined
-                                                ? "Winner: " + (game.winner === game.blackPlayer ? "Black" : "White")
-                                                : `Winner: ${game.winner === game.blackPlayer ? game.blackPlayerUsername : game.whitePlayerUsername}`}
-                                        </span>
-                                        <br />
-                                        <span className="text-red-400 font-semibold">
-                                            {game?.blackPlayerUsername === undefined || game?.whitePlayerUsername === undefined
-                                                ? "Loser: " + (game.winner === game.blackPlayer ? "White" : "Black")
-                                                : `Loser: ${game.winner === game.blackPlayer ? game.whitePlayerUsername : game.blackPlayerUsername}`}
-                                        </span>
-                                    </>
-                                )}
-                            </div>
-                        </>
-                    )
-                ) : isPlayer ? (
-                    isMyTurn ? (
-                        <span className="text-green-400 font-bold">YOUR TURN</span>
-                    ) : (
-                        <span className="text-gray-400">Opponent's turn</span>
-                    )
-                ) : (
-                    <span className="text-yellow-300 font-bold">Spectating Game</span>
-                )}
+            {/* Board with headers */}
+            <div className="w-full flex justify-center mb-2">
+                <div className="max-w-[98vw] sm:max-w-[600px] w-full px-2">
+                    <BoardWithHeaders
+                        boardSize={boardSize}
+                        spaces={spaces}
+                        handleCellClick={handleCellClick}
+                        isMyTurn={isMyTurn}
+                        game={game}
+                        lastMoveIdx={lastMoveIdx}
+                        isConnected={isConnected}
+                    />
+                </div>
+            </div>
+
+            <div className="flex flex-row flex-wrap gap-4 max-w-2xl justify-center mt-2 mb-20">
+                {/* Left column: ELO + Actions */}
+                <div className="flex flex-col items-center gap-3 max-w-xs min-w-[180px]">
+                    <EloPreview game={game} user={user} />
+                    {isPlayer && !game?.state?.isOver && (
+                        <button
+                            onClick={handleForfeit}
+                            disabled={game?.state?.isOver}
+                            className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded text-sm font-medium transition-colors shadow disabled:opacity-60 w-full"
+                        >
+                            Forfeit
+                        </button>
+                    )}
+                    <div className="flex flex-row gap-2 justify-center w-auto">
+                        <button
+                            aria-label="Toggle sound"
+                            onClick={toggleSound}
+                            className="p-2 rounded-full bg-[#232323] hover:bg-[#333] transition"
+                            title={soundOn ? "Mute sounds" : "Enable sounds"}
+                        >
+                            {soundOn ? (
+                                <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M5 14h2l3 3V7l-3 3H5v4z" />
+                                    <path d="M15 9a3 3 0 010 6" />
+                                    <path d="M17.5 6.5a7 7 0 010 11" />
+                                </svg>
+                            ) : (
+                                <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M5 14h2l3 3V7l-3 3H5v4z" />
+                                    <line x1="19" y1="5" x2="5" y2="19" stroke="red" strokeWidth="2" />
+                                </svg>
+                            )}
+                        </button>
+                        {/* Mockup Add Friend button */}
+                        <button
+                            aria-label="Add friend"
+                            className="p-2 rounded-full bg-[#232323] hover:bg-[#333] transition flex items-center justify-center"
+                            title="Add Friend"
+                        >
+                            <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="11" cy="9" r="4" stroke="#fdca33" strokeWidth="2" fill="none" />
+                                <path d="M5 19c0-2.5 3-4 6-4s6 1.5 6 4" stroke="#fdca33" strokeWidth="2" />
+                                {/* Larger + sign */}
+                                <line x1="17" y1="17" x2="23" y2="17" stroke="#fdca33" strokeWidth="3" />
+                                <line x1="20" y1="14" x2="20" y2="20" stroke="#fdca33" strokeWidth="3" />
+                            </svg>
+                        </button>
+                        <button
+                            aria-label="Report player"
+                            className="p-2 rounded-full bg-[#232323] hover:bg-[#333] transition flex items-center justify-center"
+                            title="Report Player"
+                        >
+                            <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M11 3L2 21h20L13 3z" stroke="#f87171" strokeWidth="2" fill="none" />
+                                <circle cx="12" cy="17" r="1.2" fill="#f87171" />
+                                <rect x="11" y="9" width="2" height="5" rx="1" fill="#f87171" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                {/* Middle column: Move History */}
+                <div className="max-w-xs min-w-[240px]">
+                    <MoveHistory game={game} formatMove={formatMove} />
+                </div>
+            </div>
+
+            {/* Error/Status */}
+            <div className="w-full max-w-xs mx-auto mt-2 text-center">
                 {!isConnected && (
                     <div className="text-orange-400 mt-1">Disconnected. Attempting to reconnect...</div>
                 )}
                 {error && <div className="text-red-400 mt-1">{error}</div>}
-            </div>
-
-            {/* Board + Side Panel */}
-            <div className="flex flex-row gap-6 w-full justify-center">
-                {/* Board */}
-                <div className="overflow-x-auto flex justify-center">
-                    <div
-                        style={{
-                            background: "repeating-linear-gradient(135deg, #f9e4b7, #f9e4b7 40px, #f5d399 40px, #f5d399 80px)",
-                            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                            borderRadius: "12px",
-                            display: "inline-block",
-                            padding: "8px",
-                            height: boardHeight,
-                        }}
-                    >
-                        <table className="border-collapse mx-auto">
-                            <tbody>
-                                {Array.from({ length: boardSize }).map((_, rowIdx) => (
-                                    <tr key={rowIdx}>
-                                        {getRow(rowIdx).map((cell: number, colIdx: number) => {
-                                            const idx = rowIdx * boardSize + colIdx;
-                                            // Only highlight last move if the game is NOT over
-                                            const isLastMove = !game?.state?.isOver && idx === lastMoveIdx;
-                                            return (
-                                                <td
-                                                    key={colIdx}
-                                                    className={`
-                                                    w-8 h-8 border select-none text-center align-middle
-                                                    ${cell === 0 && isMyTurn && !game?.state?.isOver && isConnected ? "hover:bg-amber-700/40 cursor-pointer" : ""}
-                                                    ${cell === 3 ? "bg-gray-300 text-gray-500 cursor-not-allowed" : ""}
-                                                    ${isLastMove ? "bg-green-400/80" : ""}
-                                                `}
-                                                    style={{
-                                                        minWidth: 32,
-                                                        minHeight: 32,
-                                                        padding: 0,
-                                                        verticalAlign: "middle",
-                                                        borderColor: "#633f2559"
-                                                    }}
-                                                    onClick={() => cell === 0 ? handleCellClick(rowIdx, colIdx) : undefined}
-                                                >
-                                                    {cell === 1 ? (
-                                                        <svg width="24" height="24" viewBox="0 0 24 24" style={{ display: "inline-block" }}>
-                                                            <circle cx="12" cy="12" r="10" fill="#22272b" stroke="black" strokeWidth="2" />
-                                                        </svg>
-                                                    ) : cell === 2 ? (
-                                                        <svg width="24" height="24" viewBox="0 0 24 24" style={{ display: "inline-block" }}>
-                                                            <circle cx="12" cy="12" r="10" fill="white" stroke="#888" strokeWidth="2" />
-                                                        </svg>
-                                                    ) : cell === 3 ? (
-                                                        <span style={{ fontSize: 20, fontWeight: "bold" }}>✕</span>
-                                                    ) : (
-                                                        ""
-                                                    )}
-                                                </td>
-                                            );
-                                        })}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                {/* Side Panel */}
-                <div
-                    className="flex flex-col gap-4 min-w-[180px]"
-                    style={{ height: boardHeight }}
-                >
-                    <div className="bg-[#181818] rounded-lg shadow p-3 mb-2">
-                        <div className="font-semibold text-[#60a5fa] mb-1 text-center text-sm">ELO Preview</div>
-                        {isPlayer ? (
-                            game?.rated ? (
-                                (() => {
-                                    if (game?.state?.isOver && game?.eloChanges && user) {
-                                        const change = game.eloChanges[user.id] ?? 0;
-                                        return (
-                                            <div className="text-center text-lg">
-                                                <span className={change > 0 ? "text-green-400" : change < 0 ? "text-red-400" : "text-yellow-300"}>
-                                                    {change > 0 ? "+" : ""}{change}
-                                                </span>
-                                            </div>
-                                        );
-                                    }
-                                    // Use game.eloOutcomes for preview
-                                    if (user && game.eloOutcomes && game.eloOutcomes[user.id]) {
-                                        const preview = game.eloOutcomes[user.id];
-                                        return (
-                                            <div className="flex flex-col items-center text-xs text-gray-200">
-                                                <div>
-                                                    <span className="font-bold text-green-400">Win:</span>{" "}
-                                                    <span className={preview.win >= 0 ? "text-green-400" : "text-red-400"}>
-                                                        {preview.win > 0 ? "+" : ""}{preview.win}
-                                                    </span>
-                                                </div>
-                                                <div>
-                                                    <span className="font-bold text-red-400">Loss:</span>{" "}
-                                                    <span className={preview.loss >= 0 ? "text-green-400" : "text-red-400"}>
-                                                        {preview.loss > 0 ? "+" : ""}{preview.loss}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        );
-                                    }
-                                    return (
-                                        <div className="text-gray-400 text-xs text-center">Unable to calculate</div>
-                                    );
-                                })()
-                            ) : (
-                                <div className="text-gray-400 text-xs text-center">Unrated game</div>
-                            )
-                        ) : (
-                            <div className="text-gray-400 text-xs text-center">Spectating: ELO preview unavailable</div>
-                        )}
-                    </div>
-
-                    {/* Move History */}
-                    <div className="bg-[#232323] rounded-lg shadow p-0 mt-2" style={{ height: "12rem" }}>
-                        <div className="font-semibold text-[#60a5fa] mb-2 text-center text-sm">Move History</div>
-                        <ol
-                            className="text-xs text-gray-200 overflow-y-auto pr-2 custom-scrollbar"
-                            style={{
-                                height: "calc(12rem - 2.5rem)", // subtract header height and padding
-                                minHeight: "3rem",
-                                scrollbarWidth: "thin",
-                                scrollbarColor: "#60a5fa #232323"
-                            }}
-                        >
-                            {game?.state?.moveList?.length > 0 ? (
-                                // Group moves into pairs: [black, white], [black, white], ...
-                                Array.from({ length: Math.ceil(game.state.moveList.length / 2) }).map((_, idx) => {
-                                    const blackMove = game.state.moveList[idx * 2];
-                                    const whiteMove = game.state.moveList[idx * 2 + 1];
-                                    return (
-                                        <li key={idx} className="mb-1 flex items-center gap-2">
-                                            <span className="font-bold">{idx + 1}.</span>
-                                            <span>
-                                                <svg width="14" height="14" viewBox="0 0 24 24" className="inline align-middle mr-1">
-                                                    <circle cx="12" cy="12" r="10" fill="#22272b" stroke="black" strokeWidth="2" />
-                                                </svg>
-                                                {blackMove !== undefined ? formatMove(blackMove) : "--"}
-                                            </span>
-                                            <span>
-                                                <svg width="14" height="14" viewBox="0 0 24 24" className="inline align-middle mr-1">
-                                                    <circle cx="12" cy="12" r="10" fill="white" stroke="#888" strokeWidth="2" />
-                                                </svg>
-                                                {whiteMove !== undefined ? formatMove(whiteMove) : "--"}
-                                            </span>
-                                        </li>
-                                    );
-                                })
-                            ) : (
-                                <li className="text-gray-400">No moves yet.</li>
-                            )}
-                        </ol>
-                    </div>
-                    <style jsx global>{`
-                        .custom-scrollbar {
-                            scrollbar-width: thin;
-                            scrollbar-color: #60a5fa #232323;
-                        }
-                        .custom-scrollbar::-webkit-scrollbar {
-                            width: 8px;
-                            background: #232323;
-                        }
-                        .custom-scrollbar::-webkit-scrollbar-thumb {
-                            background: #60a5fa;
-                            border-radius: 4px;
-                        }
-                    `}
-                    </style>
-
-                    {/* Forfeit Button */}
-                    <div className="flex justify-center w-full mt-4">
-                        {typeof timeLeft === "number" && (
-                            <span
-                                className={`mr-2 px-3 py-1 rounded font-mono text-sm border border-gray-300`}
-                                style={{
-                                    background: isMyTurn && isPlayer ? "#fff" : "#e5e7eb", // <-- light gray if not your turn
-                                    color: timeLeft < 60_000 ? "#dc2626" : "#111",
-                                    fontWeight: 600,
-                                    minWidth: game?.timing === "short" ? 60 : 90,
-                                    textAlign: "center",
-                                    borderColor: timeLeft < 60_000 ? "#dc2626" : "#e5e7eb"
-                                }}
-                                title={isMyTurn ? "Your time remaining" : "Opponent's turn"}
-                            >
-                                {formatTime(timeLeft)}
-                            </span>
-                        )}
-                        {isPlayer && (
-                            <button
-                                onClick={handleForfeit}
-                                disabled={game?.state?.isOver}
-                                className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors shadow disabled:opacity-60"
-                                style={{ minWidth: 120 }}
-                            >
-                                Forfeit
-                            </button>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            {/* Player Info Card */}
-            <div className="nomalos-card w-full max-w-xl mt-8">
-                <div className="flex justify-between items-center mb-2">
-                    <span className="text-lg font-bold">Players</span>
-                    <span className="text-sm text-gray-400">Game ID: {gameId}</span>
-                </div>
-                <div className="nomalos-player-row">
-                    <svg className="nomalos-player-piece" viewBox="0 0 24 24">
-                        <circle cx="12" cy="12" r="10" fill="#22272b" stroke="black" strokeWidth="2" />
-                    </svg>
-                    <span className="ml-2 text-yellow-400 font-bold">[Spaces: {blackScore}]</span>
-                    <span className="font-semibold">
-                        {game?.playerUsernames && game?.players ? (
-                            <Link
-                                href={`/profile/${game.players[0]}`}
-                                className="text-white hover:underline"
-                            >
-                                {game.playerUsernames[0]}
-                            </Link>
-                        ) : (
-                            (game?.playerUsernames && game?.playerUsernames[0]) || "Black"
-                        )}
-                        {user && user.id === game?.players?.[0] && " (You)"}
-                        {game?.players?.[0] ? (
-                            <span className="text-xs text-gray-400 ml-2">
-                                [ID: {game.players[0]}]
-                            </span>
-                        ) : null}
-                    </span>
-                </div>
-                <div className="nomalos-player-row">
-                    <svg className="nomalos-player-piece" viewBox="0 0 24 24">
-                        <circle cx="12" cy="12" r="10" fill="white" stroke="#888" strokeWidth="2" />
-                    </svg>
-                    <span className="ml-2 text-yellow-400 font-bold">[Spaces: {whiteScore}]</span>
-                    <span className="font-semibold">
-                        {game?.playerUsernames && game?.players ? (
-                            <Link
-                                href={`/profile/${game.players[1]}`}
-                                className="text-white hover:underline"
-                            >
-                                {game.playerUsernames[1]}
-                            </Link>
-                        ) : (
-                            (game?.playerUsernames && game?.playerUsernames[1]) || "White"
-                        )}
-                        {user && user.id === game?.players?.[1] && " (You)"}
-                        {game?.players?.[1] ? (
-                            <span className="text-xs text-gray-400 ml-2">
-                                [ID: {game.players[1]}]
-                            </span>
-                        ) : null}
-                    </span>
-                </div>
             </div>
         </div>
     );
