@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ProfileStats, ProfileGameTable, InProgressGames } from "../../../components/profileView";
+import { FaUserFriends } from "react-icons/fa";
 
 function Modal({ open, onClose, children }: { open: boolean, onClose: () => void, children: React.ReactNode }) {
   if (!open) return null;
@@ -9,6 +10,61 @@ function Modal({ open, onClose, children }: { open: boolean, onClose: () => void
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
       <div className="bg-[#232323] rounded-lg shadow-lg p-6 min-w-[320px] max-w-[90vw]">
         {children}
+        <div className="flex justify-center mt-4">
+          <button
+            onClick={onClose}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-semibold shadow"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FriendListModal({ open, onClose, token, user }: { open: boolean, onClose: () => void, token: string | null, user: any }) {
+  const [friends, setFriends] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!open || !token || !user?.id) return;
+    setLoading(true);
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/friend/list?userId=${user.id}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => setFriends(data.friends || []))
+      .finally(() => setLoading(false));
+  }, [open, token, user?.id]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
+      <div className="bg-[#232323] rounded-lg shadow-lg p-6 min-w-[90vw] max-w-md w-full sm:min-w-[320px]">
+        <div className="text-xl font-bold text-white mb-4">Your Friends</div>
+        {loading ? (
+          <div className="text-gray-300">Loading...</div>
+        ) : friends.length === 0 ? (
+          <div className="text-gray-400">You do not have any friends.</div>
+        ) : (
+          <ul
+            className="space-y-2 overflow-y-auto"
+            style={{ maxHeight: "260px", minHeight: "80px" }}
+          >
+            {friends.map(friend => (
+              <li key={friend._id} className="text-white flex items-center gap-2">
+                <a
+                  href={`/profile/${friend._id}`}
+                  className="font-semibold hover:underline"
+                >
+                  {friend.username}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="flex justify-center mt-4">
           <button
             onClick={onClose}
@@ -35,6 +91,7 @@ export default function ProfilePage() {
   const [deleteError, setDeleteError] = useState("");
   const [loggedInUserId, setLoggedInUserId] = useState<string>("");
   const router = useRouter();
+  const [showFriends, setShowFriends] = useState(false);
 
   async function handleDeleteAccount() {
     setDeleteError("");
@@ -145,6 +202,18 @@ export default function ProfilePage() {
           </div>
         </div>
       </Modal>
+      <div className="flex justify-end mb-2">
+        <button
+          className="p-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow flex items-center justify-center"
+          title="View Friends"
+          aria-label="View Friends"
+          onClick={() => setShowFriends(true)}
+          style={{ width: 36, height: 36 }}
+        >
+          <FaUserFriends className="w-5 h-5" />
+        </button>
+      </div>
+      <FriendListModal open={showFriends} onClose={() => setShowFriends(false)} token={token} user={user} />
       <ProfileStats
         username={userInfo?.username || user?.username}
         lastSeen={userInfo?.lastSeen}

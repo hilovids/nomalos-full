@@ -46,7 +46,7 @@ function PlayerBanner({
                         <svg width="18" height="18" viewBox="0 0 24 24">
                             <circle cx="12" cy="12" r="10" fill="white" stroke="#888" strokeWidth="2" />
                         </svg>
-                        <Link href={`/profile/{whiteId}`} className="font-semibold text-white hover:underline truncate max-w-[6rem]">{whiteName}</Link>
+                        <Link href={`/profile/${whiteId}`} className="font-semibold text-white hover:underline truncate max-w-[6rem]">{whiteName}</Link>
                     </div>
                 </div>
                 {/* Scores and timer row */}

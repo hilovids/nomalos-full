@@ -5,6 +5,7 @@ import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import gameRouter from "./api/game";
 import userRouter from "./api/user";
+import friendRouter from "./api/friend";
 import { connectToMongo } from "./database/mongodb";
 import http from "http";
 import { Server as SocketIOServer } from "socket.io";
@@ -50,6 +51,7 @@ app.use(express.json());
 connectToMongo().then(() => {
     app.use("/api/game", gameRouter);
     app.use("/api/user", userRouter);
+    app.use("/api/friend", friendRouter);
 
     const matchmakingQueue: any[] = [];
 
