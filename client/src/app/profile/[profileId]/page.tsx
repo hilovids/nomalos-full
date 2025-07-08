@@ -115,7 +115,7 @@ export default function ProfileIdPage() {
       />
       <InProgressGames
         games={inProgressGames}
-        userId={profileId}
+        userId={loggedInUserId ? loggedInUserId : ""}
       />
       <h2 className="text-2xl font-bold mb-6 text-white">Game History</h2>
       {error && <div className="text-red-400 mb-4">{error}</div>}
