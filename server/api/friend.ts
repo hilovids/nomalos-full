@@ -6,7 +6,7 @@ import { authenticateJWT } from "../middleware/jwt";
 
 const router = Router();
 const USER_COLLECTION = "Users";
-const FRIEND_REQUESTS_COLLECTION = "FriendRequest";
+const FRIEND_REQUESTS_COLLECTION = "FriendRequests";
 
 // --- Helper Validation Functions ---
 async function userExists(userId: string) {
@@ -28,9 +28,10 @@ async function friendRequestIsPending(requestId: string) {
 // Send a friend request
 // Send a friend request
 router.post("/send", authenticateJWT, async (req: Request, res: Response) => {
-    const { requester, recipient } = req.body;
+    const requester = (req as any).user?.id;
+    const { recipient } = req.body;
     if (!requester || !recipient) {
-        res.status(400).json({ error: "Missing requester or recipient" });
+        res.status(400).json({ error: "Missing recipient" });
         return;
     }
     if (requester === recipient) {
@@ -50,9 +51,10 @@ router.post("/send", authenticateJWT, async (req: Request, res: Response) => {
 });
 
 router.post("/cancel", authenticateJWT, async (req: Request, res: Response) => {
-    const { requester, recipient } = req.body;
+    const requester = (req as any).user?.id;
+    const { recipient } = req.body;
     if (!requester || !recipient) {
-        res.status(400).json({ error: "Missing requester or recipient" });
+        res.status(400).json({ error: "Missing recipient" });
         return;
     }
     const db = getDb();
@@ -70,13 +72,17 @@ router.post("/cancel", authenticateJWT, async (req: Request, res: Response) => {
 
 // Accept a friend request
 router.post("/accept", authenticateJWT, async (req: Request, res: Response) => {
-    const { requestId, userId } = req.body;
+    const userId = (req as any).user?.id;
+    const { requestId } = req.body;
     if (!requestId || !userId) {
-        res.status(400).json({ error: "Missing requestId or userId" });
+        res.status(400).json({ error: "Missing requestId" });
         return;
     }
-    if (!(await friendRequestIsPending(requestId))) {
-        res.status(404).json({ error: "Friend request not found or already handled" });
+    // Check that the request exists and the logged-in user is the recipient
+    const db = getDb();
+    const request = await db.collection(FRIEND_REQUESTS_COLLECTION).findOne({ _id: new ObjectId(requestId), status: "pending" });
+    if (!request || request.recipient !== userId) {
+        res.status(403).json({ error: "Not authorized to accept this request" });
         return;
     }
     try {
@@ -108,9 +114,10 @@ router.post("/decline", authenticateJWT, async (req: Request, res: Response) => 
 
 // Remove a friend
 router.post("/remove", authenticateJWT, async (req: Request, res: Response) => {
-    const { userId, friendId } = req.body;
+    const userId = (req as any).user?.id;
+    const { friendId } = req.body;
     if (!userId || !friendId) {
-        res.status(400).json({ error: "Missing userId or friendId" });
+        res.status(400).json({ error: "Missing friendId" });
         return;
     }
     if (userId === friendId) {
@@ -131,7 +138,7 @@ router.post("/remove", authenticateJWT, async (req: Request, res: Response) => {
 
 // List a user's friends
 router.get("/list", authenticateJWT, async (req: Request, res: Response) => {
-    const userId = req.query.userId?.toString();
+    const userId = (req as any).user?.id; // Use user ID from JWT
     if (!userId) {
         res.status(400).json({ error: "Missing userId" });
         return;
@@ -147,7 +154,12 @@ router.get("/list", authenticateJWT, async (req: Request, res: Response) => {
             .find({ _id: { $in: (user.friends || []).map((id: string) => new ObjectId(id)) } })
             .project({ username: 1, online: 1 })
             .toArray();
-        res.json({ friends });
+        // Normalize _id to string
+        const normalizedFriends = friends.map((f: any) => ({
+            ...f,
+            _id: f._id.toString(),
+        }));
+        res.json({ friends: normalizedFriends });
     } catch (err: any) {
         res.status(400).json({ error: err.message });
     }
@@ -155,7 +167,7 @@ router.get("/list", authenticateJWT, async (req: Request, res: Response) => {
 
 // List incoming/outgoing friend requests
 router.get("/requests", authenticateJWT, async (req: Request, res: Response) => {
-    const userId = req.query.userId?.toString();
+    const userId = (req as any).user?.id; // Use user ID from JWT
     if (!userId) {
         res.status(400).json({ error: "Missing userId" });
         return;
@@ -166,7 +178,14 @@ router.get("/requests", authenticateJWT, async (req: Request, res: Response) => 
             .find({ recipient: userId, status: "pending" }).toArray();
         const outgoing = await db.collection(FRIEND_REQUESTS_COLLECTION)
             .find({ requester: userId, status: "pending" }).toArray();
-        res.json({ incoming, outgoing });
+        // Normalize _id to string
+        const normalize = (arr: any[]) => arr.map(req => ({
+            ...req,
+            _id: req._id.toString(),
+            requester: req.requester?.toString?.() ?? req.requester,
+            recipient: req.recipient?.toString?.() ?? req.recipient,
+        }));
+        res.json({ incoming: normalize(incoming), outgoing: normalize(outgoing) });
     } catch (err: any) {
         res.status(400).json({ error: err.message });
     }

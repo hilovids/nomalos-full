@@ -1,5 +1,6 @@
 import { ObjectId, PullOperator } from "mongodb";
 import { getDb } from "./mongodb";
+import { io, userSocketMap } from "../index";
 
 const COLLECTION = "FriendRequests";
 const USER_COLLECTION = "Users";
@@ -22,13 +23,27 @@ export async function sendFriendRequest(requester: string, recipient: string) {
         recipient,
         status: { $in: ["pending", "accepted"] }
     });
-    if (existing) throw new Error("Request already exists or already friends");
-    await db.collection<FriendRequest>(COLLECTION).insertOne({
+    if (existing) return;
+    const result = await db.collection<FriendRequest>(COLLECTION).insertOne({
         requester,
         recipient,
         status: "pending",
         createdAt: now
     });
+
+        try {
+        const requesterUser = await db.collection(USER_COLLECTION).findOne({ _id: new ObjectId(requester) });
+        const recipientSocketId = userSocketMap.get(recipient);
+        if (recipientSocketId && requesterUser) {
+            io.to(recipientSocketId).emit("friend_request", {
+                fromUserId: requester,
+                fromUsername: requesterUser.username,
+                requestId: result.insertedId.toString(),
+            });
+        }
+    } catch (err) {
+        console.error("Error emitting friend_request event:", err);
+    }
 }
 
 export async function acceptFriendRequest(requestId: string) {

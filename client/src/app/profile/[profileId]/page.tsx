@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ProfileStats, ProfileGameTable, InProgressGames } from "../../../../components/profileView";
 import { FaUserPlus, FaUserMinus, FaClock, FaCheck } from "react-icons/fa";
 
+
 function AddFriendButton({
   profileId,
   loggedInUserId,
@@ -29,6 +30,8 @@ function AddFriendButton({
   onAccept: () => void;
   disabled?: boolean;
 }) {
+  const [hover, setHover] = useState(false);
+
   if (!loggedInUserId || loggedInUserId === profileId) return null;
 
   if (isFriend) {
@@ -50,13 +53,15 @@ function AddFriendButton({
     return (
       <button
         className="p-2 rounded-full bg-yellow-600 hover:bg-yellow-700 text-white shadow flex items-center justify-center"
-        title="Cancel Friend Request"
+        title={hover ? "Cancel Friend Request" : "Pending Friend Request"}
         aria-label="Cancel Friend Request"
         onClick={onCancel}
         disabled={disabled}
         style={{ width: 36, height: 36 }}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
       >
-        <FaClock className="w-5 h-5" />
+        {hover ? <FaUserMinus className="w-5 h-5" /> : <FaClock className="w-5 h-5" />}
       </button>
     );
   }
@@ -108,6 +113,12 @@ export default function ProfileIdPage() {
   const [token, setToken] = useState<string | null>(null);
   const [pendingRequest, setPendingRequest] = useState(false);
   const [incomingRequest, setIncomingRequest] = useState(false);
+  const [cooldown, setCooldown] = useState(false);
+
+  const startCooldown = () => {
+    setCooldown(true);
+    setTimeout(() => setCooldown(false), 1500); // 1.5 seconds cooldown
+  };
 
   // Set token and loggedInUserId on mount
   useEffect(() => {
@@ -177,25 +188,28 @@ export default function ProfileIdPage() {
   const refreshFriendStatus = useCallback(() => {
     if (!profileId || !loggedInUserId || !token) return;
     // Check if already friends
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/friend/list?userId=${loggedInUserId}`, {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/friend/list`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
       .then(data => {
+        console.log("Friend list data:", data);
         const friends = data.friends || [];
-        setIsFriend(friends.some((f: any) => f._id === profileId));
+        // Always compare as strings to avoid ObjectId issues
+        setIsFriend(friends.some((f: any) => String(f._id) === String(profileId)));
       });
 
     // Check pending/incoming requests
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/friend/requests?userId=${loggedInUserId}`, {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/friend/requests`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
       .then(data => {
+        console.log("Friend requests data:", data);
         const outgoing = data.outgoing || [];
         const incoming = data.incoming || [];
-        setPendingRequest(outgoing.some((req: any) => req.recipient === profileId));
-        setIncomingRequest(incoming.some((req: any) => req.requester === profileId));
+        setPendingRequest(outgoing.some((req: any) => String(req.recipient) === String(profileId)));
+        setIncomingRequest(incoming.some((req: any) => String(req.requester) === String(profileId)));
       });
   }, [profileId, loggedInUserId, token]);
 
@@ -205,26 +219,8 @@ export default function ProfileIdPage() {
   }, [refreshFriendStatus]);
 
   // --- Friend actions ---
-  const handleCancelRequest = async () => {
-    if (!token || !loggedInUserId) return;
-    setFriendLoading(true);
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/friend/cancel`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        requester: loggedInUserId,
-        recipient: profileId,
-      }),
-    });
-    setFriendLoading(false);
-    refreshFriendStatus();
-  };
-
   const handleAddFriend = async () => {
-    if (!token || !loggedInUserId) return;
+    if (!token || friendLoading || cooldown) return;
     setFriendLoading(true);
     await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/friend/send`, {
       method: "POST",
@@ -233,16 +229,42 @@ export default function ProfileIdPage() {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        requester: loggedInUserId,
         recipient: profileId,
       }),
     });
     setFriendLoading(false);
+    startCooldown();
+    refreshFriendStatus();
+  };
+
+  useEffect(() => {
+    const handler = () => {
+      refreshFriendStatus();
+    };
+    window.addEventListener("friendStatusChanged", handler);
+    return () => window.removeEventListener("friendStatusChanged", handler);
+  }, [refreshFriendStatus]);
+
+  const handleCancelRequest = async () => {
+    if (!token || friendLoading || cooldown) return;
+    setFriendLoading(true);
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/friend/cancel`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        recipient: profileId,
+      }),
+    });
+    setFriendLoading(false);
+    startCooldown();
     refreshFriendStatus();
   };
 
   const handleAcceptRequest = async () => {
-    if (!token || !loggedInUserId) return;
+    if (!token) return;
     setFriendLoading(true);
     // Find the requestId for this incoming request
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/friend/requests?userId=${loggedInUserId}`, {
@@ -260,7 +282,6 @@ export default function ProfileIdPage() {
         },
         body: JSON.stringify({
           requestId: request._id,
-          userId: loggedInUserId,
         }),
       });
     }
@@ -323,7 +344,7 @@ export default function ProfileIdPage() {
           onRemove={handleRemoveFriend}
           onCancel={handleCancelRequest}
           onAccept={handleAcceptRequest}
-          disabled={friendLoading}
+          disabled={friendLoading || cooldown}
         />
       </div>
       <ProfileStats

@@ -30,7 +30,7 @@ function FriendListModal({ open, onClose, token, user }: { open: boolean, onClos
   useEffect(() => {
     if (!open || !token || !user?.id) return;
     setLoading(true);
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/friend/list?userId=${user.id}`, {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/friend/list`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -43,28 +43,31 @@ function FriendListModal({ open, onClose, token, user }: { open: boolean, onClos
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
       <div className="bg-[#232323] rounded-lg shadow-lg p-6 min-w-[90vw] max-w-md w-full sm:min-w-[320px]">
-        <div className="text-xl font-bold text-white mb-4">Your Friends</div>
-        {loading ? (
-          <div className="text-gray-300">Loading...</div>
-        ) : friends.length === 0 ? (
-          <div className="text-gray-400">You do not have any friends.</div>
-        ) : (
-          <ul
-            className="space-y-2 overflow-y-auto"
-            style={{ maxHeight: "260px", minHeight: "80px" }}
-          >
-            {friends.map(friend => (
-              <li key={friend._id} className="text-white flex items-center gap-2">
-                <a
-                  href={`/profile/${friend._id}`}
-                  className="font-semibold hover:underline"
-                >
-                  {friend.username}
-                </a>
-              </li>
-            ))}
-          </ul>
-        )}
+        <div className="text-xl font-bold text-white mb-4 text-center">Your Friends</div>
+        {/* Friend list section with dark background and scroll */}
+        <div
+          className="bg-[#18181b] rounded-md p-3 mb-4 overflow-y-auto"
+          style={{ maxHeight: "260px", minHeight: "80px" }}
+        >
+          {loading ? (
+            <div className="text-gray-300">Loading...</div>
+          ) : friends.length === 0 ? (
+            <div className="text-gray-400">You do not have any friends.</div>
+          ) : (
+            <ul className="space-y-2">
+              {friends.map(friend => (
+                <li key={friend._id} className="text-white flex items-center gap-2">
+                  <a
+                    href={`/profile/${friend._id}`}
+                    className="font-semibold hover:underline"
+                  >
+                    {friend.username}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
         <div className="flex justify-center mt-4">
           <button
             onClick={onClose}

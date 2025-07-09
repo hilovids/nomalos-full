@@ -6,7 +6,7 @@ import jwt from "jsonwebtoken";
 import { authenticateJWT } from "../middleware/jwt";
 import { GameTiming } from "../nomalos/game";
 import leoProfanity from "leo-profanity";
-
+import { getDb } from "../database/mongodb";
 
 const router = Router();
 
@@ -28,6 +28,11 @@ router.post("/login", async (req: Request, res: Response) => {
     const { username, password } = req.body;
     if (!username) {
         res.status(400).json({ error: "Username is required" });
+        return;
+    }
+
+    if(username.toLowerCase() === "anonymous") {
+        res.status(400).json({ error: "Username is not allowed." });
         return;
     }
 
@@ -129,13 +134,37 @@ router.post("/login", async (req: Request, res: Response) => {
 });
 
 router.delete("/:userId", authenticateJWT, async (req: Request, res: Response) => {
-    const userId = req.params.userId;
+    const userId = (req as any).user?.id;
     const user = await UserRepo.getUserById(userId);
     if (!user) {
         res.status(404).json({ error: "User not found" });
         return;
     }
+
+    const db = getDb();
+
+    // 1. Remove all friend requests involving this user
+    await db.collection("FriendRequests").deleteMany({
+        $or: [{ requester: userId }, { recipient: userId }]
+    });
+
+    // 2. Remove this user from other users' friend lists
+    await db.collection("Users").updateMany(
+        { friends: userId },
+        { $pull: { friends: userId } } as any
+    );
+
+    // 3. Anonymize user in games (replace username with "Deleted User")
+    await db.collection("Games").updateMany(
+        { "players": userId },
+        { $set: { "playerUsernames.$[elem]": "Anonymous" } },
+        { arrayFilters: [{ "elem": user.username }] }
+    );
+    // Optionally, you may want to also clear avatars or other personal info in games
+
+    // 4. Delete the user
     await UserRepo.deleteUser(userId);
+
     res.json({ message: "User deleted successfully" });
 });
 
@@ -154,7 +183,7 @@ router.post("/set-password", authenticateJWT, async (req: Request, res: Response
         res.status(400).json({ error: "Username must be between 3 and 20 characters long." });
         return;
     }
-    
+
     if (leoProfanity.check(username)) {
         res.status(400).json({ error: "Username contains inappropriate language." });
         return;

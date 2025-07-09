@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import gameRouter from "./api/game";
 import userRouter from "./api/user";
 import friendRouter from "./api/friend";
+import requestRouter from "./api/request";
 import { connectToMongo } from "./database/mongodb";
 import http from "http";
 import { Server as SocketIOServer } from "socket.io";
@@ -18,6 +19,7 @@ import cron from "node-cron";
 dotenv.config();
 
 const app = express();
+app.use(express.json());
 const server = http.createServer(app);
 export const io = new SocketIOServer(server, {
     cors: {
@@ -25,6 +27,8 @@ export const io = new SocketIOServer(server, {
         credentials: true
     }
 });
+
+export const userSocketMap = new Map<string, string>();
 
 // Logging middleware
 app.use((req, res, next) => {
@@ -52,6 +56,7 @@ connectToMongo().then(() => {
     app.use("/api/game", gameRouter);
     app.use("/api/user", userRouter);
     app.use("/api/friend", friendRouter);
+    app.use("/api/request", requestRouter);
 
     const matchmakingQueue: any[] = [];
 
@@ -59,14 +64,29 @@ connectToMongo().then(() => {
     io.on("connection", (socket) => {
         console.log(`[SOCKET] Connected: ${socket.id}`);
 
-        function emitOnlineCount() {
-            io.emit("online_count", io.engine.clientsCount);
+        function updateActivity() {
+            (socket as any).lastActivity = Date.now();
         }
 
-        emitOnlineCount();
+        io.emit("online_count", io.engine.clientsCount);
+
 
         socket.on("disconnect", () => {
-            emitOnlineCount();
+            io.emit("online_count", io.engine.clientsCount);
+        });
+
+        socket.on("register", ({ userId }) => {
+            const oldSocketId = userSocketMap.get(userId);
+            if (oldSocketId && oldSocketId !== socket.id) {
+                const oldSocket = io.sockets.sockets.get(oldSocketId);
+                if (oldSocket) {
+                    oldSocket.disconnect(true);
+                    console.log(`[SOCKET] Disconnected previous socket for user ${userId}: ${oldSocketId}`);
+                }
+            }
+            userSocketMap.set(userId, socket.id);
+            (socket as any).userId = userId;
+            console.log(`[SOCKET] Registered user ${userId} to socket ${socket.id}`);
         });
 
         socket.on("find_match", async ({ userId, username, rating, timing, size, rated }) => {
@@ -116,9 +136,6 @@ connectToMongo().then(() => {
             }
         });
 
-        function updateActivity() {
-            (socket as any).lastActivity = Date.now();
-        }
         (socket as any).lastActivity = Date.now();
         socket.onAny(() => updateActivity());
 
@@ -201,20 +218,20 @@ connectToMongo().then(() => {
 
     app.use("/api/health", createHealthRouter(io, matchmakingQueue));
 
-    // Periodic cleanup for idle sockets
-    const IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
-    setInterval(() => {
-        const now = Date.now();
-        for (const socket of io.sockets.sockets.values()) {
-            const lastActivity = (socket as any).lastActivity || 0;
-            const inMatchmaking = matchmakingQueue.some(q => q.socketId === socket.id);
-            const inGame = Array.from(socket.rooms).some(room => room !== socket.id && room.startsWith("game_"));
-            if (!inMatchmaking && !inGame && now - lastActivity > IDLE_TIMEOUT_MS) {
-                console.log(`[CLEANUP] Disconnecting idle socket: ${socket.id}`);
-                socket.disconnect(true);
-            }
-        }
-    }, 60 * 1000); // Check every minute
+    // // Periodic cleanup for idle sockets
+    // const IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+    // setInterval(() => {
+    //     const now = Date.now();
+    //     for (const socket of io.sockets.sockets.values()) {
+    //         const lastActivity = (socket as any).lastActivity || 0;
+    //         const inMatchmaking = matchmakingQueue.some(q => q.socketId === socket.id);
+    //         const inGame = Array.from(socket.rooms).some(room => room !== socket.id && room.startsWith("game_"));
+    //         if (!inMatchmaking && !inGame && now - lastActivity > IDLE_TIMEOUT_MS) {
+    //             console.log(`[CLEANUP] Disconnecting idle socket: ${socket.id}`);
+    //             socket.disconnect(true);
+    //         }
+    //     }
+    // }, 60 * 1000); // Check every minute
 
     const PORT = process.env.PORT || 5000;
     server.listen(PORT, () => {

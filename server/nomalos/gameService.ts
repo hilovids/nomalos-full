@@ -73,12 +73,15 @@ export default class GameService {
         const resultA = winnerId === playerAId ? 1 : 0;
         const resultB = winnerId === playerBId ? 1 : 0;
 
-        await UserRepo.updateUser(playerAId, {
-            [statsField]: updateStats(playerA, resultA),
-        });
-        await UserRepo.updateUser(playerBId, {
-            [statsField]: updateStats(playerB, resultB),
-        });
+
+        if(!game.wasAborted){
+            await UserRepo.updateUser(playerAId, {
+                [statsField]: updateStats(playerA, resultA),
+            });
+            await UserRepo.updateUser(playerBId, {
+                [statsField]: updateStats(playerB, resultB),
+            });
+        }
 
         // Update game object with ELO deltas for future reference
         const eloChanges = {

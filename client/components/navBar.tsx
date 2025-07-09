@@ -2,10 +2,14 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { getSocket } from "@/lib/socket";
+import { FaUserFriends } from "react-icons/fa";
 
 export default function NavBar() {
   const [user, setUser] = useState<any>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [inboxAlert, setInboxAlert] = useState(false);
+  const [popup, setPopup] = useState<{ fromUsername: string, requestId: string } | null>(null);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -16,6 +20,38 @@ export default function NavBar() {
     } else {
       setUser(null);
     }
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    // Check friend requests
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/request/count`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(({ count, friendCount, gameCount }) => {
+        if (friendCount > 0 || gameCount > 0) {
+          setInboxAlert(true);
+        }
+      })
+      .catch(() => { });
+  }, []);
+
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    if (!user?.id) return;
+    const socket = getSocket(user.id);
+    // Listen for friend_request
+    socket.on("friend_request", (data) => {
+      setInboxAlert(true);
+      console.log("Friend request received:", data);
+      setPopup({ fromUsername: data.fromUsername, requestId: data.requestId }); // <-- include requestId
+      setTimeout(() => setPopup(null), 5000); // Hide popup after 5s
+    });
+    return () => {
+      socket.off("friend_request");
+    };
   }, []);
 
   function handleLogout() {
@@ -58,7 +94,6 @@ export default function NavBar() {
           <span className={`block w-6 h-0.5 bg-gray-200 transition-all ${menuOpen ? "-rotate-45 -translate-y-1.5" : ""}`}></span>
         </button>
       )}
-      {/* Desktop menu */}
       <div className="hidden sm:flex items-center gap-3 sm:gap-4 text-sm sm:text-base">
         {user ? (
           <>
@@ -70,6 +105,14 @@ export default function NavBar() {
             </Link>
             <Link href="/leaderboard" className="text-[#e0e7ef] hover:text-white font-medium transition-colors">
               Leaderboard
+            </Link>
+            <Link href="/inbox" className="relative text-[#e0e7ef] hover:text-white font-medium transition-colors">
+              Inbox
+              {inboxAlert && (
+                <span className="absolute -top-1 -right-3 bg-red-600 text-white rounded-full px-1.5 text-xs font-bold">
+                  !
+                </span>
+              )}
             </Link>
             <Link href="/profile" className="text-[#e0e7ef] hover:text-white font-medium transition-colors">
               Profile
@@ -112,6 +155,14 @@ export default function NavBar() {
                 <Link href="/leaderboard" className="w-full py-2 text-[#e0e7ef] hover:text-white font-medium transition-colors" onClick={() => setMenuOpen(false)}>
                   Leaderboard
                 </Link>
+                <Link href="/inbox" className="relative">
+                  Inbox
+                  {inboxAlert && (
+                    <span className="absolute -top-1 -right-3 bg-red-600 text-white rounded-full px-1.5 text-xs font-bold">
+                      !
+                    </span>
+                  )}
+                </Link>
                 <Link href="/profile" className="w-full py-2 text-[#e0e7ef] hover:text-white font-medium transition-colors" onClick={() => setMenuOpen(false)}>
                   Profile
                 </Link>
@@ -137,6 +188,69 @@ export default function NavBar() {
                 </Link>
               )
             )}
+          </div>
+        </div>
+      )}
+      {popup && !pathname.includes("/game") && (
+        <div
+          className="fixed bottom-24 right-8 z-50 bg-[#232323] text-white rounded-lg shadow-xl px-6 py-3 border-r-4 border-green-400 flex flex-col items-start min-w-[220px] max-w-[90vw] animate-slide-in"
+          style={{ fontSize: "1rem" }}
+        >
+          <div className="font-bold text-green-400 text-base mb-1 flex items-center gap-2">
+            <FaUserFriends className="text-green-400 w-5 h-5" />
+            Friend Request
+          </div>
+          <div className="mb-1 w-full">
+            From{" "}
+            <span
+              className="text-green-300 font-semibold inline-block max-w-[140px] truncate align-bottom"
+              title={popup.fromUsername}
+              style={{ verticalAlign: "bottom" }}
+            >
+              {popup.fromUsername}
+            </span>
+          </div>
+          <div className="flex gap-2 mt-2">
+            <button
+              className="bg-green-500 hover:bg-green-600 text-white font-semibold px-3 py-1 rounded transition"
+              onClick={async () => {
+                const token = localStorage.getItem("token");
+                await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/friend/accept`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                  },
+                  body: JSON.stringify({ requestId: popup.requestId }),
+                });
+                setPopup(null);
+                setInboxAlert(false);
+                // Notify profile page to refresh friend status
+                window.dispatchEvent(new Event("friendStatusChanged"));
+              }}
+            >
+              Accept
+            </button>
+            <button
+              className="bg-red-500 hover:bg-red-600 text-white font-semibold px-3 py-1 rounded transition"
+              onClick={async () => {
+                const token = localStorage.getItem("token");
+                await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/friend/decline`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                  },
+                  body: JSON.stringify({ requestId: popup.requestId }),
+                });
+                setPopup(null);
+                setInboxAlert(false);
+                // Notify profile page to refresh friend status
+                window.dispatchEvent(new Event("friendStatusChanged"));
+              }}
+            >
+              Decline
+            </button>
           </div>
         </div>
       )}
