@@ -4,13 +4,46 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { getSocket } from "@/lib/socket";
 import { FaUserFriends } from "react-icons/fa";
+import router from "next/router";
+import { RiSwordFill } from "react-icons/ri";
+import { TbBeta } from "react-icons/tb";
+
 
 export default function NavBar() {
   const [user, setUser] = useState<any>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [inboxAlert, setInboxAlert] = useState(false);
-  const [popup, setPopup] = useState<{ fromUsername: string, requestId: string } | null>(null);
+  const [popup, setPopup] = useState<
+    | null
+    | {
+      type: "friend";
+      fromUsername: string;
+      requestId: string;
+    }
+    | {
+      type: "game";
+      fromUsername: string;
+      requestId: string;
+      timing: string;
+      rated: boolean;
+      size: number;
+    }
+  >(null);
   const pathname = usePathname();
+
+  const checkInboxCount = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/request/count`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const { count, friendCount, gameCount } = await res.json();
+      setInboxAlert(count > 0);
+    } catch {
+      console.error("Failed to fetch inbox count");
+    }
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -30,10 +63,8 @@ export default function NavBar() {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
-      .then(({ count, friendCount, gameCount }) => {
-        if (friendCount > 0 || gameCount > 0) {
-          setInboxAlert(true);
-        }
+      .then(({ count }) => {
+        setInboxAlert(count > 0);
       })
       .catch(() => { });
   }, []);
@@ -42,15 +73,44 @@ export default function NavBar() {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     if (!user?.id) return;
     const socket = getSocket(user.id);
-    // Listen for friend_request
+
     socket.on("friend_request", (data) => {
       setInboxAlert(true);
-      console.log("Friend request received:", data);
-      setPopup({ fromUsername: data.fromUsername, requestId: data.requestId }); // <-- include requestId
-      setTimeout(() => setPopup(null), 5000); // Hide popup after 5s
+      if (!pathname.startsWith("/inbox")) {
+        setPopup({
+          type: "friend",
+          fromUsername: data.fromUsername,
+          requestId: data.requestId,
+        });
+        setTimeout(() => setPopup(null), 5000);
+      }
+      checkInboxCount();
     });
+
+    socket.on("game_request", (data) => {
+      setInboxAlert(true);
+      if (!pathname.startsWith("/inbox")) {
+        setPopup({
+          type: "game",
+          fromUsername: data.fromUsername,
+          requestId: data.requestId,
+          timing: data.timing,
+          rated: data.rated,
+          size: data.size,
+        });
+        setTimeout(() => setPopup(null), 5000);
+      }
+      checkInboxCount();
+    });
+
+    socket.on("friend_status_update", checkInboxCount);
+    socket.on("game_status_update", checkInboxCount);
+
     return () => {
       socket.off("friend_request");
+      socket.off("game_request");
+      socket.off("friend_status_update", checkInboxCount);
+      socket.off("game_status_update", checkInboxCount);
     };
   }, []);
 
@@ -78,8 +138,8 @@ export default function NavBar() {
           style={{ display: "block", padding: 0, margin: 0 }}
           className="m-0 p-0 w-9 h-9 sm:w-12 sm:h-12"
         />
-        <span className="ml-1 sm:ml-2 px-1.5 sm:px-2 py-0.5 rounded text-xs font-bold text-yellow-400">
-          beta
+        <span className="px-1.5 sm:px-2 py-0.5 rounded text-xs font-bold text-yellow-400">
+          <TbBeta className="ml-1 w-5 h-5 sm:w-6 sm:h-6 text-yellow-400" />
         </span>
       </Link>
       {/* Hamburger menu button for mobile */}
@@ -193,60 +253,98 @@ export default function NavBar() {
       )}
       {popup && !pathname.includes("/game") && (
         <div
-          className="fixed bottom-24 right-8 z-50 bg-[#232323] text-white rounded-lg shadow-xl px-6 py-3 border-r-4 border-green-400 flex flex-col items-start min-w-[220px] max-w-[90vw] animate-slide-in"
+          className={`fixed bottom-24 right-8 z-50 bg-[#232323] text-white rounded-lg shadow-xl px-6 py-3 border-r-4 flex flex-col items-start min-w-[220px] max-w-[90vw] animate-slide-in ${popup.type === "friend"
+            ? "border-green-400"
+            : "border-blue-400"
+            }`}
           style={{ fontSize: "1rem" }}
         >
-          <div className="font-bold text-green-400 text-base mb-1 flex items-center gap-2">
-            <FaUserFriends className="text-green-400 w-5 h-5" />
-            Friend Request
+          <div
+            className={`font-bold text-base mb-1 flex items-center gap-2 ${popup.type === "friend" ? "text-green-400" : "text-blue-400"
+              }`}
+          >
+            {popup.type === "friend" ? (
+              <>
+                <FaUserFriends className="w-5 h-5" />
+                Friend Request
+              </>
+            ) : (
+              <>
+                <RiSwordFill className="w-5 h-5" />
+                Game Request
+              </>
+            )}
           </div>
           <div className="mb-1 w-full">
             From{" "}
             <span
-              className="text-green-300 font-semibold inline-block max-w-[140px] truncate align-bottom"
+              className={`font-semibold inline-block max-w-[140px] truncate align-bottom ${popup.type === "friend" ? "text-green-300" : "text-blue-300"
+                }`}
               title={popup.fromUsername}
               style={{ verticalAlign: "bottom" }}
             >
               {popup.fromUsername}
             </span>
           </div>
+          {popup.type === "game" && (
+            <div className="mb-1 w-full text-sm text-blue-200">
+              {popup.timing === "short" ? "Short" : "Long"} •{" "}
+              {popup.rated ? "Rated" : "Unrated"} • Size {popup.size}
+            </div>
+          )}
           <div className="flex gap-2 mt-2">
             <button
-              className="bg-green-500 hover:bg-green-600 text-white font-semibold px-3 py-1 rounded transition"
+              className={`font-semibold px-3 py-1 rounded transition ${popup.type === "friend"
+                ? "bg-green-500 hover:bg-green-600 text-white"
+                : "bg-blue-500 hover:bg-blue-600 text-white"
+                }`}
               onClick={async () => {
                 const token = localStorage.getItem("token");
-                await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/friend/accept`, {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                  },
-                  body: JSON.stringify({ requestId: popup.requestId }),
-                });
+                const res = await fetch(
+                  `${process.env.NEXT_PUBLIC_API_URL}/api/${popup.type === "friend" ? "friend" : "game-request"
+                  }/accept`,
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ requestId: popup.requestId }),
+                  }
+                );
                 setPopup(null);
-                setInboxAlert(false);
-                // Notify profile page to refresh friend status
-                window.dispatchEvent(new Event("friendStatusChanged"));
+                await checkInboxCount();
+                if (popup.type === "game") {
+                  const data = await res.json();
+                  if (data && data.gameId) {
+                    router.push(`/game/${data.gameId}`);
+                  }
+                }
               }}
             >
               Accept
             </button>
             <button
-              className="bg-red-500 hover:bg-red-600 text-white font-semibold px-3 py-1 rounded transition"
+              className={`font-semibold px-3 py-1 rounded transition ${popup.type === "friend"
+                ? "bg-red-500 hover:bg-red-600 text-white"
+                : "bg-red-500 hover:bg-red-600 text-white"
+                }`}
               onClick={async () => {
                 const token = localStorage.getItem("token");
-                await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/friend/decline`, {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                  },
-                  body: JSON.stringify({ requestId: popup.requestId }),
-                });
+                await fetch(
+                  `${process.env.NEXT_PUBLIC_API_URL}/api/${popup.type === "friend" ? "friend" : "game-request"
+                  }/decline`,
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ requestId: popup.requestId }),
+                  }
+                );
                 setPopup(null);
-                setInboxAlert(false);
-                // Notify profile page to refresh friend status
-                window.dispatchEvent(new Event("friendStatusChanged"));
+                await checkInboxCount();
               }}
             >
               Decline

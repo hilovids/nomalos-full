@@ -3,6 +3,7 @@ import { sendFriendRequest, acceptFriendRequest, declineFriendRequest, removeFri
 import { getDb } from "../database/mongodb";
 import { ObjectId } from "mongodb";
 import { authenticateJWT } from "../middleware/jwt";
+import { io, userSocketMap } from "..";
 
 const router = Router();
 const USER_COLLECTION = "Users";
@@ -64,6 +65,13 @@ router.post("/cancel", authenticateJWT, async (req: Request, res: Response) => {
             recipient,
             status: "pending"
         });
+        const recipientSocketId = userSocketMap.get(recipient);
+        if (recipientSocketId) {
+            io.to(recipientSocketId).emit("friend_status_update", {
+                recipient, // the user who accepted
+                status: "declined",
+            });
+        }
         res.status(200).json({ success: true });
     } catch (err: any) {
         res.status(400).json({ error: err.message });
@@ -87,6 +95,15 @@ router.post("/accept", authenticateJWT, async (req: Request, res: Response) => {
     }
     try {
         await acceptFriendRequest(requestId);
+        // --- SOCKET EMIT TO REQUESTER ---
+        const requesterId = request.requester;
+        const requesterSocketId = userSocketMap.get(requesterId);
+        if (requesterSocketId) {
+            io.to(requesterSocketId).emit("friend_status_update", {
+                userId, // the user who accepted
+                status: "accepted",
+            });
+        }
         res.status(200).json({ success: true });
     } catch (err: any) {
         res.status(400).json({ error: err.message });
@@ -95,9 +112,16 @@ router.post("/accept", authenticateJWT, async (req: Request, res: Response) => {
 
 // Decline a friend request
 router.post("/decline", authenticateJWT, async (req: Request, res: Response) => {
-    const { requestId, userId } = req.body;
+    const userId = (req as any).user?.id;
+    const { requestId } = req.body;
     if (!requestId || !userId) {
         res.status(400).json({ error: "Missing requestId or userId" });
+        return;
+    }
+    const db = getDb();
+    const request = await db.collection(FRIEND_REQUESTS_COLLECTION).findOne({ _id: new ObjectId(requestId), status: "pending" });
+    if (!request || request.recipient !== userId) {
+        res.status(403).json({ error: "Not authorized to decline this request" });
         return;
     }
     if (!(await friendRequestIsPending(requestId))) {
@@ -106,6 +130,15 @@ router.post("/decline", authenticateJWT, async (req: Request, res: Response) => 
     }
     try {
         await declineFriendRequest(requestId);
+        // --- SOCKET EMIT TO REQUESTER ---
+        const requesterId = request.requester;
+        const requesterSocketId = userSocketMap.get(requesterId);
+        if (requesterSocketId) {
+            io.to(requesterSocketId).emit("friend_status_update", {
+                userId, // the user who declined
+                status: "declined",
+            });
+        }
         res.status(200).json({ success: true });
     } catch (err: any) {
         res.status(400).json({ error: err.message });
@@ -167,7 +200,7 @@ router.get("/list", authenticateJWT, async (req: Request, res: Response) => {
 
 // List incoming/outgoing friend requests
 router.get("/requests", authenticateJWT, async (req: Request, res: Response) => {
-    const userId = (req as any).user?.id; // Use user ID from JWT
+    const userId = (req as any).user?.id;
     if (!userId) {
         res.status(400).json({ error: "Missing userId" });
         return;
@@ -178,14 +211,35 @@ router.get("/requests", authenticateJWT, async (req: Request, res: Response) => 
             .find({ recipient: userId, status: "pending" }).toArray();
         const outgoing = await db.collection(FRIEND_REQUESTS_COLLECTION)
             .find({ requester: userId, status: "pending" }).toArray();
-        // Normalize _id to string
-        const normalize = (arr: any[]) => arr.map(req => ({
+
+        // Collect all unique user IDs to fetch usernames
+        const userIds = [
+            ...incoming.map(req => req.requester),
+            ...outgoing.map(req => req.recipient),
+        ].filter(Boolean).map(id => id.toString());
+        const uniqueUserIds = [...new Set(userIds)].map(id => new ObjectId(id));
+
+        // Fetch users in one query
+        const users = await db.collection(USER_COLLECTION)
+            .find({ _id: { $in: uniqueUserIds } })
+            .project({ username: 1 })
+            .toArray();
+        const userMap = Object.fromEntries(users.map(u => [u._id.toString(), u.username]));
+
+        // Attach usernames to requests
+        const normalize = (arr: any[], type: "incoming" | "outgoing") => arr.map(req => ({
             ...req,
             _id: req._id.toString(),
             requester: req.requester?.toString?.() ?? req.requester,
             recipient: req.recipient?.toString?.() ?? req.recipient,
+            requesterUsername: userMap[req.requester?.toString?.() ?? req.requester] || req.requester,
+            recipientUsername: userMap[req.recipient?.toString?.() ?? req.recipient] || req.recipient,
         }));
-        res.json({ incoming: normalize(incoming), outgoing: normalize(outgoing) });
+
+        res.json({
+            incoming: normalize(incoming, "incoming"),
+            outgoing: normalize(outgoing, "outgoing"),
+        });
     } catch (err: any) {
         res.status(400).json({ error: err.message });
     }

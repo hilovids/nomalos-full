@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ProfileStats, ProfileGameTable, InProgressGames } from "../../../../components/profileView";
 import { FaUserPlus, FaUserMinus, FaClock, FaCheck } from "react-icons/fa";
+import { getSocket } from "@/lib/socket";
 
 
 function AddFriendButton({
@@ -193,7 +194,6 @@ export default function ProfileIdPage() {
     })
       .then(res => res.json())
       .then(data => {
-        console.log("Friend list data:", data);
         const friends = data.friends || [];
         // Always compare as strings to avoid ObjectId issues
         setIsFriend(friends.some((f: any) => String(f._id) === String(profileId)));
@@ -205,7 +205,6 @@ export default function ProfileIdPage() {
     })
       .then(res => res.json())
       .then(data => {
-        console.log("Friend requests data:", data);
         const outgoing = data.outgoing || [];
         const incoming = data.incoming || [];
         setPendingRequest(outgoing.some((req: any) => String(req.recipient) === String(profileId)));
@@ -238,13 +237,21 @@ export default function ProfileIdPage() {
   };
 
   useEffect(() => {
-    const handler = () => {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    if (!user?.id) return;
+    const socket = getSocket(user.id);
+
+    const handler = (data: any) => {
+      // Optionally check if data.userId matches profileId or loggedInUserId
       refreshFriendStatus();
     };
-    window.addEventListener("friendStatusChanged", handler);
-    return () => window.removeEventListener("friendStatusChanged", handler);
-  }, [refreshFriendStatus]);
 
+    socket.on("friend_status_update", handler);
+    return () => {
+      socket.off("friend_status_update", handler);
+    };
+  }, [refreshFriendStatus]);
+  
   const handleCancelRequest = async () => {
     if (!token || friendLoading || cooldown) return;
     setFriendLoading(true);

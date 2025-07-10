@@ -7,6 +7,7 @@ import gameRouter from "./api/game";
 import userRouter from "./api/user";
 import friendRouter from "./api/friend";
 import requestRouter from "./api/request";
+import gameRequestRouter from "./api/gameRequest";
 import { connectToMongo } from "./database/mongodb";
 import http from "http";
 import { Server as SocketIOServer } from "socket.io";
@@ -57,6 +58,7 @@ connectToMongo().then(() => {
     app.use("/api/user", userRouter);
     app.use("/api/friend", friendRouter);
     app.use("/api/request", requestRouter);
+    app.use("/api/game-request", gameRequestRouter);
 
     const matchmakingQueue: any[] = [];
 
@@ -218,20 +220,6 @@ connectToMongo().then(() => {
 
     app.use("/api/health", createHealthRouter(io, matchmakingQueue));
 
-    // // Periodic cleanup for idle sockets
-    // const IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
-    // setInterval(() => {
-    //     const now = Date.now();
-    //     for (const socket of io.sockets.sockets.values()) {
-    //         const lastActivity = (socket as any).lastActivity || 0;
-    //         const inMatchmaking = matchmakingQueue.some(q => q.socketId === socket.id);
-    //         const inGame = Array.from(socket.rooms).some(room => room !== socket.id && room.startsWith("game_"));
-    //         if (!inMatchmaking && !inGame && now - lastActivity > IDLE_TIMEOUT_MS) {
-    //             console.log(`[CLEANUP] Disconnecting idle socket: ${socket.id}`);
-    //             socket.disconnect(true);
-    //         }
-    //     }
-    // }, 60 * 1000); // Check every minute
 
     const PORT = process.env.PORT || 5000;
     server.listen(PORT, () => {

@@ -235,7 +235,6 @@ router.post("/request", authenticateJWT, async (req: Request, res: Response) => 
 
 // List incoming/outgoing game requests
 router.get("/requests", authenticateJWT, async (req: Request, res: Response) => {
-    console.log("Fetching game requests for user");
     const userId = (req as any).user?.id;
     if (!userId) {
         res.status(400).json({ error: "Missing userId" });

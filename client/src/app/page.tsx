@@ -78,10 +78,10 @@ export default function Home() {
         <Card className="w-full mb-24">
           <h2 className="text-xl font-semibold mb-2 text-white">Planned Features</h2>
           <ol className="list-decimal list-inside text-gray-200 mb-2">
-            <li>Improved mobile design</li>
+            <li>Improved matchmaking</li>
+            <li>Improved page designs and animations</li>
             <li>Vs. Computer matches</li>
-            <li>Friend lists and custom games</li>
-            <li>Animations and more...</li>
+            <li>Public API</li>
             <li>In-game chat</li>
             <li>ELO graph over time</li>
           </ol>
