@@ -43,13 +43,13 @@ app.use(cors({
     origin: process.env.CORS_ORIGIN?.split("|") || ["http://localhost:3000"],
     credentials: true
 }));
-app.use(rateLimit({
-    windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-    max: Number(process.env.RATE_LIMIT_MAX) || 100,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: "Too many requests, please try again later."
-}));
+// app.use(rateLimit({
+//     windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+//     max: Number(process.env.RATE_LIMIT_MAX) || 100,
+//     standardHeaders: true,
+//     legacyHeaders: false,
+//     message: "Too many requests, please try again later."
+// }));
 app.use(express.json());
 
 // Connect to MongoDB before starting the server
@@ -146,6 +146,16 @@ connectToMongo().then(() => {
             if (idx !== -1) {
                 const removed = matchmakingQueue.splice(idx, 1)[0];
                 console.log(`[SOCKET] cancel_matchmaking: Removed ${removed.username} (${socket.id}) from queue`);
+            }
+        });
+
+        socket.on("self_ui_update", ({ userId }) => {
+            // Find the socket for this user
+            const socketId = userSocketMap.get(userId);
+            if (socketId) {
+                // Emit both status updates in case either is needed
+                io.to(socketId).emit("friend_status_update");
+                io.to(socketId).emit("game_status_update");
             }
         });
 

@@ -89,6 +89,10 @@ export default function InboxPage() {
       body: JSON.stringify({ requestId }),
     });
     fetchRequests();
+    const socket = getSocket(user?.id);
+    socket.emit("self_ui_update", {
+      userId: user.id,
+    });
   };
 
   // Cancel Friend Request (outgoing)
@@ -103,6 +107,10 @@ export default function InboxPage() {
       body: JSON.stringify({ recipient }),
     });
     fetchRequests();
+    const socket = getSocket(user?.id);
+    socket.emit("self_ui_update", {
+      userId: user.id,
+    });
   };
 
   const handleGameAction = async (requestId: string, action: "accept" | "decline") => {
@@ -116,6 +124,10 @@ export default function InboxPage() {
       body: JSON.stringify({ requestId }),
     });
     fetchRequests();
+    const socket = getSocket(user?.id);
+    socket.emit("self_ui_update", {
+      userId: user.id,
+    });
   };
 
   // Cancel Game Request (outgoing)
@@ -130,6 +142,10 @@ export default function InboxPage() {
       body: JSON.stringify({ requestId }),
     });
     fetchRequests();
+    const socket = getSocket(user?.id);
+    socket.emit("self_ui_update", {
+      userId: user.id,
+    });
   };
 
   // Button/icon styles to match profile page

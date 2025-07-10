@@ -56,12 +56,6 @@ export async function acceptFriendRequest(requestId: string) {
     });
     if (!request) throw new Error("Request not found or already handled");
 
-    // Update the request status to accepted
-    await db.collection<FriendRequest>(COLLECTION).updateOne(
-        { _id: new ObjectId(requestId) },
-        { $set: { status: "accepted" } }
-    );
-
     // Add each user to the other's friends array (if not already present)
     await db.collection(USER_COLLECTION).updateOne(
         { _id: new ObjectId(request.requester) },
@@ -72,26 +66,14 @@ export async function acceptFriendRequest(requestId: string) {
         { $addToSet: { friends: request.requester } }
     );
 
+    await db.collection("FriendRequests").deleteOne({ _id: new ObjectId(requestId) });
+
     return { success: true };
 }
 
 export async function declineFriendRequest(requestId: string) {
     const db = getDb();
-
-    // Find the request and ensure it's pending
-    const request = await db.collection<FriendRequest>(COLLECTION).findOne({
-        _id: new ObjectId(requestId),
-        status: "pending"
-    });
-    if (!request) throw new Error("Request not found or already handled");
-
-    // Update the request status to declined
-    await db.collection<FriendRequest>(COLLECTION).updateOne(
-        { _id: new ObjectId(requestId) },
-        { $set: { status: "declined" } }
-    );
-
-    return { success: true };
+    await db.collection("FriendRequests").deleteOne({ _id: new ObjectId(requestId) });
 }
 
 export async function removeFriend(userId: string, friendId: string) {

@@ -4,6 +4,8 @@ import Card from "../../components/card";
 
 export default function Home() {
   const [user, setUser] = useState<any>(null);
+  const [showOnlineCount, setShowOnlineCount] = useState(false);
+
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -11,6 +13,10 @@ export default function Home() {
     if (token && userData) {
       setUser(JSON.parse(userData));
     }
+  }, []);
+
+    useEffect(() => {
+    setShowOnlineCount(true);
   }, []);
 
   function OnlineCount() {
@@ -53,9 +59,7 @@ export default function Home() {
           className="text-s text-gray-400 mb-6"
           style={{ marginTop: "-32px" }}
         >
-          {typeof window !== "undefined" && (
-            <OnlineCount />
-          )}
+          {showOnlineCount && <OnlineCount />}
         </div>
         <Card className="w-full mt-0 mb-8">
           <h2 className="text-xl font-semibold mb-2 text-white">What is Nomalos?</h2>

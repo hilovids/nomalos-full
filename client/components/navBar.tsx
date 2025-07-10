@@ -112,7 +112,7 @@ export default function NavBar() {
       socket.off("friend_status_update", checkInboxCount);
       socket.off("game_status_update", checkInboxCount);
     };
-  }, []);
+  }, [pathname]);
 
   function handleLogout() {
     localStorage.removeItem("token");
@@ -125,6 +125,7 @@ export default function NavBar() {
   // Close menu on route change
   useEffect(() => {
     setMenuOpen(false);
+    checkInboxCount();
   }, [pathname]);
 
   return (
