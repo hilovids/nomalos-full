@@ -3,13 +3,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { getSocket } from "@/lib/socket";
-import { FaUserFriends } from "react-icons/fa";
-import router from "next/router";
+import { FaExternalLinkAlt, FaUserFriends } from "react-icons/fa";
+import { useRouter } from "next/navigation";
 import { RiSwordFill } from "react-icons/ri";
 import { TbBeta } from "react-icons/tb";
 
-
 export default function NavBar() {
+  const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [inboxAlert, setInboxAlert] = useState(false);
@@ -27,6 +27,12 @@ export default function NavBar() {
       timing: string;
       rated: boolean;
       size: number;
+    }
+    | {
+      type: "game_accepted";
+      fromUsername: string;
+      requestId: string;
+      gameId: any;
     }
   >(null);
   const pathname = usePathname();
@@ -103,6 +109,21 @@ export default function NavBar() {
       checkInboxCount();
     });
 
+    socket.on("game_request_accepted", (data) => {
+      // Always show only one game_accepted popup
+      setPopup((prev) =>
+        prev?.type === "game_accepted" && prev?.gameId === data.gameId
+          ? prev
+          : {
+            type: "game_accepted",
+            fromUsername: "",
+            requestId: "",
+            gameId: data.gameId,
+          }
+      );
+      setTimeout(() => setPopup(null), 10000); // Hide after 10s
+    });
+
     socket.on("friend_status_update", checkInboxCount);
     socket.on("game_status_update", checkInboxCount);
 
@@ -111,6 +132,7 @@ export default function NavBar() {
       socket.off("game_request");
       socket.off("friend_status_update", checkInboxCount);
       socket.off("game_status_update", checkInboxCount);
+      socket.off("game_request_accepted");
     };
   }, [pathname]);
 
@@ -119,7 +141,7 @@ export default function NavBar() {
     localStorage.removeItem("user");
     setUser(null);
     setMenuOpen(true);
-    window.location.href = "/login";
+    router.push("/login");
   }
 
   // Close menu on route change
@@ -252,106 +274,143 @@ export default function NavBar() {
           </div>
         </div>
       )}
-      {popup && !pathname.includes("/game") && (
-        <div
-          className={`fixed bottom-24 right-8 z-50 bg-[#232323] text-white rounded-lg shadow-xl px-6 py-3 border-r-4 flex flex-col items-start min-w-[220px] max-w-[90vw] animate-slide-in ${popup.type === "friend"
-            ? "border-green-400"
-            : "border-blue-400"
-            }`}
-          style={{ fontSize: "1rem" }}
-        >
+      {/* Popups */}
+      {popup && (
+        popup.type === "game_accepted" ? (
           <div
-            className={`font-bold text-base mb-1 flex items-center gap-2 ${popup.type === "friend" ? "text-green-400" : "text-blue-400"
-              }`}
+            className="fixed bottom-24 right-8 z-50 bg-[#232323] text-white rounded-lg shadow-xl px-6 py-3 border-r-4 border-blue-400 flex flex-col items-start min-w-[220px] max-w-[90vw] animate-slide-in"
+            style={{ fontSize: "1rem" }}
           >
-            {popup.type === "friend" ? (
-              <>
-                <FaUserFriends className="w-5 h-5" />
-                Friend Request
-              </>
-            ) : (
-              <>
-                <RiSwordFill className="w-5 h-5" />
-                Game Request
-              </>
-            )}
-          </div>
-          <div className="mb-1 w-full">
-            From{" "}
-            <span
-              className={`font-semibold inline-block max-w-[140px] truncate align-bottom ${popup.type === "friend" ? "text-green-300" : "text-blue-300"
-                }`}
-              title={popup.fromUsername}
-              style={{ verticalAlign: "bottom" }}
-            >
-              {popup.fromUsername}
-            </span>
-          </div>
-          {popup.type === "game" && (
-            <div className="mb-1 w-full text-sm text-blue-200">
-              {popup.timing === "short" ? "Short" : "Long"} •{" "}
-              {popup.rated ? "Rated" : "Unrated"} • Size {popup.size}
+            <div className="font-bold text-base mb-1 flex items-center gap-2 text-blue-400">
+              <RiSwordFill className="w-5 h-5" />
+              Game Accepted!
             </div>
-          )}
-          <div className="flex gap-2 mt-2">
-            <button
-              className={`font-semibold px-3 py-1 rounded transition ${popup.type === "friend"
-                ? "bg-green-500 hover:bg-green-600 text-white"
-                : "bg-blue-500 hover:bg-blue-600 text-white"
-                }`}
-              onClick={async () => {
-                const token = localStorage.getItem("token");
-                const res = await fetch(
-                  `${process.env.NEXT_PUBLIC_API_URL}/api/${popup.type === "friend" ? "friend" : "game-request"
-                  }/accept`,
-                  {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      Authorization: `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({ requestId: popup.requestId }),
-                  }
-                );
-                setPopup(null);
-                await checkInboxCount();
-                if (popup.type === "game") {
-                  const data = await res.json();
-                  if (data && data.gameId) {
-                    router.push(`/game/${data.gameId}`);
-                  }
-                }
-              }}
-            >
-              Accept
-            </button>
-            <button
-              className={`font-semibold px-3 py-1 rounded transition ${popup.type === "friend"
-                ? "bg-red-500 hover:bg-red-600 text-white"
-                : "bg-red-500 hover:bg-red-600 text-white"
-                }`}
-              onClick={async () => {
-                const token = localStorage.getItem("token");
-                await fetch(
-                  `${process.env.NEXT_PUBLIC_API_URL}/api/${popup.type === "friend" ? "friend" : "game-request"
-                  }/decline`,
-                  {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      Authorization: `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({ requestId: popup.requestId }),
-                  }
-                );
-                setPopup(null);
-                await checkInboxCount();
-              }}
-            >
-              Decline
-            </button>
+            <div className="flex gap-2 mt-2">
+              <button
+                className="font-semibold px-3 py-1 rounded bg-blue-500 hover:bg-blue-600 text-white flex items-center gap-2"
+                onClick={() => {
+                  setPopup(null);
+                  router.push(`/game/${popup.gameId}`);
+                }}
+              >
+                Go to Game <FaExternalLinkAlt className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          !pathname.includes("/game") && (
+            <div
+              className={`fixed bottom-24 right-8 z-50 bg-[#232323] text-white rounded-lg shadow-xl px-6 py-3 border-r-4 flex flex-col items-start min-w-[220px] max-w-[90vw] animate-slide-in ${popup.type === "friend"
+                ? "border-green-400"
+                : "border-blue-400"
+                }`}
+              style={{ fontSize: "1rem" }}
+            >
+              <div
+                className={`font-bold text-base mb-1 flex items-center gap-2 ${popup.type === "friend" ? "text-green-400" : "text-blue-400"
+                  }`}
+              >
+                {popup.type === "friend" ? (
+                  <>
+                    <FaUserFriends className="w-5 h-5" />
+                    Friend Request
+                  </>
+                ) : (
+                  <>
+                    <RiSwordFill className="w-5 h-5" />
+                    Game Request
+                  </>
+                )}
+              </div>
+              <div className="mb-1 w-full">
+                From{" "}
+                <span
+                  className={`font-semibold inline-block max-w-[140px] truncate align-bottom ${popup.type === "friend" ? "text-green-300" : "text-blue-300"
+                    }`}
+                  title={popup.fromUsername}
+                  style={{ verticalAlign: "bottom" }}
+                >
+                  {popup.fromUsername}
+                </span>
+              </div>
+              {popup.type === "game" && (
+                <div className="mb-1 w-full text-sm text-blue-200">
+                  {popup.timing === "short" ? "Short" : "Long"} •{" "}
+                  {popup.rated ? "Rated" : "Unrated"} • Size {popup.size}
+                </div>
+              )}
+              <div className="flex gap-2 mt-2">
+                <button
+                  className={`font-semibold px-3 py-1 rounded transition ${popup.type === "friend"
+                    ? "bg-green-500 hover:bg-green-600 text-white"
+                    : "bg-blue-500 hover:bg-blue-600 text-white"
+                    }`}
+                  onClick={async () => {
+                    const token = localStorage.getItem("token");
+                    const res = await fetch(
+                      `${process.env.NEXT_PUBLIC_API_URL}/api/${popup.type === "friend" ? "friend" : "game-request"}/accept`,
+                      {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                          Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({ requestId: popup.requestId }),
+                      }
+                    );
+                    setPopup(null);
+                    await checkInboxCount();
+                    if (popup.type === "game") {
+                      const data = await res.json();
+                      // Emit a socket event to notify this client of acceptance
+                      const user = JSON.parse(localStorage.getItem("user") || "{}");
+                      const socket = getSocket(user.id);
+                      // Find the other player in the game
+                      const currentUserId = user.id;
+                      const players = data.gameId?.players || [];
+                      const recipientUserId = players.find((pid: string) => pid !== currentUserId);
+                      socket.emit("game_request_accepted", {
+                        recipientUserId,
+                        gameId: data.gameId?.id || data.gameId,
+                      });
+                      // Redirect to game board
+                      if (data && data.gameId) {
+                        router.push(`/game/${data.gameId?.id || data.gameId}`);
+                      }
+                    }
+                  }}
+                >
+                  Accept
+                </button>
+                <button
+                  className={`font-semibold px-3 py-1 rounded transition ${popup.type === "friend"
+                    ? "bg-red-500 hover:bg-red-600 text-white"
+                    : "bg-red-500 hover:bg-red-600 text-white"
+                    }`}
+                  onClick={async () => {
+                    const token = localStorage.getItem("token");
+                    await fetch(
+                      `${process.env.NEXT_PUBLIC_API_URL}/api/${popup.type === "friend" ? "friend" : "game-request"
+                      }/decline`,
+                      {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                          Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({ requestId: popup.requestId }),
+                      }
+                    );
+                    setPopup(null);
+                    await checkInboxCount();
+                  }}
+                >
+                  Decline
+                </button>
+              </div>
+            </div>
+          )
+        )
       )}
     </nav>
   );

@@ -115,7 +115,7 @@ export default function InboxPage() {
 
   const handleGameAction = async (requestId: string, action: "accept" | "decline") => {
     if (!token) return;
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/game-request/${action}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/game-request/${action}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -128,6 +128,22 @@ export default function InboxPage() {
     socket.emit("self_ui_update", {
       userId: user.id,
     });
+
+    if (action === "accept") {
+      const data = await res.json();
+      // Find the other player in the game
+      const currentUserId = user.id;
+      const players = data.gameId?.players || [];
+      const recipientUserId = players.find((pid: string) => pid !== currentUserId);
+      socket.emit("game_request_accepted", {
+        recipientUserId,
+        gameId: data.gameId?.id || data.gameId,
+      });
+      // Redirect to game board
+      if (data && data.gameId) {
+        router.push(`/game/${data.gameId?.id || data.gameId}`);
+      }
+    }
   };
 
   // Cancel Game Request (outgoing)

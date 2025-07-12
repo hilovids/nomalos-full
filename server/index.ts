@@ -159,6 +159,18 @@ connectToMongo().then(() => {
             }
         });
 
+        socket.on("game_request_accepted", (data) => {
+            // data should include the recipient's userId (the original requester)
+            const { recipientUserId, gameId } = data;
+            const recipientSocketId = userSocketMap.get(recipientUserId);
+            console.log(`[SOCKET] game_request_accepted: ${socket.id} accepted request for gameId=${gameId} from ${recipientUserId}`);
+            if (recipientSocketId) {
+                io.to(recipientSocketId).emit("game_request_accepted", {
+                    gameId
+                });
+            }
+        });
+
         socket.on("join_game", (gameId) => {
             socket.join(gameId);
             console.log(`[SOCKET] ${socket.id} joined room ${gameId}`);

@@ -10,7 +10,12 @@ export default function FindGamePage() {
     const [timing, setTiming] = useState<"short" | "long">("short");
     const [rated, setRated] = useState(true);
     const router = useRouter();
-    const socket = getSocket();
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    if (!user?.id || !user?.username) {
+        router.push("/login");
+        return null;
+    }
+    const socket = getSocket(user.id);
 
     useEffect(() => {
         if (status === "waiting") {

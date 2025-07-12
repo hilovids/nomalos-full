@@ -15,7 +15,7 @@ export default function Home() {
     }
   }, []);
 
-    useEffect(() => {
+  useEffect(() => {
     setShowOnlineCount(true);
   }, []);
 
@@ -65,6 +65,16 @@ export default function Home() {
           <h2 className="text-xl font-semibold mb-2 text-white">What is Nomalos?</h2>
           <p className="text-gray-200 mb-2">
             <span className="font-bold text-yellow-400">Nomalos</span> is an abstract strategy game for two players involving the placement of pieces on a board. In Nomalos, players maximize their territory through the construction of similarly colored islands containing odd numbers of pieces. The core rules of Nomalos and this web app were designed by <span className="font-bold text-yellow-400">Davis Murphy</span>.
+            <div className="mt-6 flex gap-4">
+              <a
+                href="https://forms.gle/aMpdxxakQ2x9svvd7"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-[#232323] text-blue-400 hover:text-white px-4 py-2 rounded font-semibold transition-colors"
+              >
+                Found a Bug?
+              </a>
+            </div>
           </p>
         </Card>
         <Card className="w-full mb-8">

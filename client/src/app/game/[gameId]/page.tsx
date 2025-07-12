@@ -390,7 +390,7 @@ export default function GamePage() {
     const [showErrorModal, setShowErrorModal] = useState(false);
     const [eloChange, setEloChange] = useState<number | null>(null);
     const [result, setResult] = useState<"win" | "loss" | "draw" | null>(null);
-    const socket = getSocket();
+
     const router = useRouter();
     const [showForfeitConfirm, setShowForfeitConfirm] = useState(false);
     const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -620,7 +620,11 @@ export default function GamePage() {
     // Get user info from localStorage
     const user = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("user") || "null") : null;
     const isPlayer = user && (user.id === game?.blackPlayer || user.id === game?.whitePlayer);
-
+    if (!user?.id || !user?.username) {
+        router.push("/login");
+        return null;
+    }
+    const socket = getSocket(user.id);
     // For demonstration, default to 11x11 if no game loaded
     const boardSize = game?.state?.board?.size || 11;
     const spaces: number[] = game?.state?.board?.spaces || Array(boardSize * boardSize).fill(0);
@@ -855,10 +859,10 @@ export default function GamePage() {
                     <div className="text-2xl font-bold text-yellow-400 mb-2">Game Over</div>
                     {/* Win/Loss/Draw Text */}
                     {user && game ? (
-                        game.winner === user.id ? (
-                            <div className="text-green-400 text-lg font-semibold mb-4">You won!</div>
-                        ) : game.wasAborted ? (
+                        game.wasAborted ? (
                             <div className="text-yellow-300 text-lg font-semibold mb-4">Game Aborted</div>
+                        ) : game.winner === user.id ? (
+                            <div className="text-green-400 text-lg font-semibold mb-4">You won!</div>
                         ) : (
                             <div className="text-red-400 text-lg font-semibold mb-4">You lost...</div>
                         )

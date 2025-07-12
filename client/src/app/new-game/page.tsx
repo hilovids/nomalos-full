@@ -43,7 +43,9 @@ export default function NewGamePage() {
   // Listen for game_request_accepted socket event to redirect
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
-    if (!user?.id) return;
+    if (!user?.id || !user?.username) {
+        router.push("/login");
+    }
     const socket = getSocket(user.id);
 
     const handler = (data: { gameId: string }) => {
