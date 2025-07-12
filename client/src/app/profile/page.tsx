@@ -40,14 +40,17 @@ function FriendListModal({ open, onClose, token, user }: { open: boolean, onClos
 
   if (!open) return null;
 
+  // Add scroll if more than 5 friends
+  const scrollClass = friends.length > 5 ? "friends-scroll max-h-56 overflow-y-auto pr-1" : "";
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
       <div className="bg-[#232323] rounded-lg shadow-lg p-6 min-w-[90vw] max-w-md w-full sm:min-w-[320px]">
         <div className="text-xl font-bold text-white mb-4 text-center">Your Friends</div>
         {/* Friend list section with dark background and scroll */}
         <div
-          className="bg-[#18181b] rounded-md p-3 mb-4 overflow-y-auto"
-          style={{ maxHeight: "260px", minHeight: "80px" }}
+          className={`bg-[#18181b] rounded-md p-3 mb-4 ${scrollClass}`}
+          style={{ minHeight: "80px" }}
         >
           {loading ? (
             <div className="text-gray-300">Loading...</div>

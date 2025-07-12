@@ -54,7 +54,11 @@ function PlayerBanner({
                 <div className="flex items-center justify-between w-full px-6 mt-2 text-yellow-400 font-semibold text-sm">
                     <span>Black: {blackScore}</span>
                     {typeof timeLeft === "number" && !game?.state?.isOver && (
-                        <span className="px-3 py-1 rounded font-mono text-sm bg-white text-black font-bold border border-yellow-400 mx-2">
+                        <span
+                            className={`px-3 py-1 rounded font-mono text-sm bg-white font-bold border mx-2
+                            ${timeLeft <= 10000 ? "text-red-600 border-red-400" : "text-black border-yellow-400"}
+                        `}
+                        >
                             {formatTime(timeLeft)}
                         </span>
                     )}
@@ -576,7 +580,7 @@ export default function GamePage() {
     }
 
     function getMoveTimeMs() {
-        return game?.timing === "short" ? 2 * 60 * 1000 : 24 * 60 * 60 * 1000; // 2 min or 24 hours
+        return game?.timing === "short" ? 30 * 1000 : 24 * 60 * 60 * 1000;
     }
 
     function Modal({ open, onClose, children }: { open: boolean, onClose: () => void, children: React.ReactNode }) {

@@ -44,7 +44,7 @@ export default function NewGamePage() {
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     if (!user?.id || !user?.username) {
-        router.push("/login");
+      router.push("/login");
     }
     const socket = getSocket(user.id);
 
@@ -107,15 +107,15 @@ export default function NewGamePage() {
               <div className="text-gray-500 text-sm mb-2">No friends found.</div>
             )}
             <div
-              className={`flex flex-col gap-1 ${friends.length > 3 ? "max-h-40 overflow-y-auto pr-1" : ""}`}
+              className={`friends-scroll flex flex-col p-1 gap-1 ${friends.length > 3 ? "max-h-40 overflow-y-auto pr-1" : ""}`}
               style={{ scrollbarGutter: "stable" }}
             >
               {friends.map((user) => (
                 <button
-                  key={`friend-${user.id}`}
+                  key={`friend-${user._id}`}
                   className={`flex items-center gap-2 px-3 py-2 rounded w-full transition border relative
-      ${selectedUser?.id === user.id
-                      ? "bg-[#3fae49] border-[#3fae49] text-white font-bold ring-2 ring-[#3fae49] ring-offset-2"
+      ${selectedUser?._id === user._id
+                      ? "bg-[#3fae49] border-[#3fae49] text-white font-bold ring-2 ring-[#3fae49]"
                       : "bg-[#232323] border-[#333] text-[#3fae49] hover:bg-[#2e8c36]"
                     }`}
                   onClick={() => setSelectedUser(user)}
@@ -123,7 +123,7 @@ export default function NewGamePage() {
                   style={{ minHeight: 40 }}
                 >
                   {/* Left indicator for selected */}
-                  {selectedUser?.id === user.id && (
+                  {selectedUser?._id === user._id && (
                     <span className="absolute left-0 top-0 bottom-0 w-1 bg-yellow-400 rounded-l"></span>
                   )}
                   <span className="font-semibold ml-2">{user.username}</span>
@@ -131,7 +131,7 @@ export default function NewGamePage() {
                     <img src={user.avatarUrl} alt={user.username} className="w-6 h-6 rounded-full" />
                   )}
                   {/* Checkmark for selected */}
-                  {selectedUser?.id === user.id && (
+                  {selectedUser?._id === user._id && (
                     <span className="ml-auto text-yellow-300 font-bold">&#10003;</span>
                   )}
                 </button>
@@ -183,7 +183,7 @@ export default function NewGamePage() {
               className="bg-[#232323] text-white rounded px-4 py-2 w-40 border border-[#333] focus:outline-none focus:ring-2 focus:ring-[#60a5fa] transition text-center"
               disabled={sending}
             >
-              <option value="short">Short (2 mins)</option>
+              <option value="short">Short (30 secs)</option>
               <option value="long">Long (24 hrs)</option>
             </select>
           </div>

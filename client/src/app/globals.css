@@ -34,3 +34,23 @@ body {
 .animate-slide-in {
   animation: slide-in 0.35s cubic-bezier(0.4, 0.8, 0.4, 1) both;
 }
+
+.friends-scroll::-webkit-scrollbar {
+  width: 8px;
+  background: #232323;
+  border-radius: 8px;
+}
+
+.friends-scroll::-webkit-scrollbar-thumb {
+  background: #3fae49;
+  border-radius: 8px;
+}
+
+.friends-scroll::-webkit-scrollbar-thumb:hover {
+  background: #2b8233;
+}
+
+.friends-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #3fae49 #232323;
+}

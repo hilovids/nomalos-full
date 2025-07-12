@@ -254,7 +254,7 @@ connectToMongo().then(() => {
         const games = await GameRepo.getActiveGames(); // Implement this to return games where !state.isOver
         for (const game of games) {
             const isShort = game.timing === "short";
-            const msLimit = isShort ? 2 * 60 * 1000 : 24 * 60 * 60 * 1000; // 2 min or 24 hours
+            const msLimit = isShort ? 30 * 1000 : 24 * 60 * 60 * 1000; // 30 sec or 24 hours
             const lastMove = new Date(game.updatedAt || game.createdAt);
             if (now.getTime() - lastMove.getTime() > msLimit) {
                 console.log(`[CRON] Forfeiting game ${game.id} due to inactivity`);
