@@ -2,14 +2,18 @@ import { Router, Request, Response } from "express";
 import * as GameRepo from "../database/games";
 import * as UserRepo from "../database/users";
 import * as ArchiveRepo from "../database/archive";
-import { makeMove } from "../nomalos/gameState";
 import { calculateElo } from "../utils/eloUtils";
 import { Space } from "../nomalos/space";
 import rateLimit from "express-rate-limit";
-import { io } from "../index"; // <-- Socket.IO instance
+import { io, userSocketMap } from "../index"; // <-- Socket.IO instance
 import GameService from "../nomalos/gameService"; // <-- Use GameService
+import { getDb } from "../database/mongodb";
+import { authenticateJWT } from "../middleware/jwt";
+import { ObjectId } from "mongodb";
 
 const router = Router();
+const GAME_REQUESTS_COLLECTION = "GameRequests";
+const USER_COLLECTION = "Users";
 
 // --- 9. Per-user rate limiting for move endpoint ---
 const moveLimiter = rateLimit({
@@ -150,14 +154,6 @@ router.post("/:id/move", moveLimiter, async (req: Request, res: Response) => {
                         else stats.gamesDrawn += 1;
                         return stats;
                     };
-                    const updateCombined = (user: any, result: 1 | 0.5 | 0) => {
-                        const stats = { ...(user.combinedStats || { gamesPlayed: 0, gamesWon: 0, gamesLost: 0, gamesDrawn: 0 }) };
-                        stats.gamesPlayed += 1;
-                        if (result === 1) stats.gamesWon += 1;
-                        else if (result === 0) stats.gamesLost += 1;
-                        else stats.gamesDrawn += 1;
-                        return stats;
-                    };
 
                     await UserRepo.updateUser(playerAId, {
                         [statsField]: updateStats(playerA, resultA),
@@ -185,6 +181,81 @@ router.post("/:id/move", moveLimiter, async (req: Request, res: Response) => {
         res.json({ game: updatedGame });
     } catch (err) {
         res.status(400).json({ error: "Failed to make move", details: err instanceof Error ? err.message : err });
+    }
+});
+
+router.post("/request", authenticateJWT, async (req: Request, res: Response) => {
+    const requester = (req as any).user?.id;
+    const { recipient } = req.body;
+    if (!requester || !recipient) {
+        res.status(400).json({ error: "Missing recipient" });
+        return;
+    }
+    if (requester === recipient) {
+        res.status(400).json({ error: "Cannot send a game request to yourself" });
+        return;
+    }
+    const db = getDb();
+    // Prevent duplicate requests
+    const existing = await db.collection(GAME_REQUESTS_COLLECTION).findOne({
+        requester,
+        recipient,
+        status: "pending"
+    });
+    if (existing) {
+        res.status(409).json({ error: "Game request already pending" });
+        return;
+    }
+    // Insert the game request
+    const now = new Date();
+    const result = await db.collection(GAME_REQUESTS_COLLECTION).insertOne({
+        requester,
+        recipient,
+        status: "pending",
+        createdAt: now
+    });
+
+    // Emit socket event to recipient if online
+    try {
+        const requesterUser = await db.collection(USER_COLLECTION).findOne({ _id: new ObjectId(requester) });
+        const recipientSocketId = userSocketMap.get(recipient);
+        if (recipientSocketId && requesterUser) {
+            io.to(recipientSocketId).emit("game_request", {
+                fromUserId: requester,
+                fromUsername: requesterUser.username,
+                requestId: result.insertedId.toString(),
+            });
+        }
+    } catch (err) {
+        console.error("Error emitting game_request event:", err);
+    }
+
+    res.status(201).json({ success: true });
+});
+
+// List incoming/outgoing game requests
+router.get("/requests", authenticateJWT, async (req: Request, res: Response) => {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+        res.status(400).json({ error: "Missing userId" });
+        return;
+    }
+    const db = getDb();
+    try {
+        const incoming = await db.collection(GAME_REQUESTS_COLLECTION)
+            .find({ recipient: userId, status: "pending" }).toArray();
+        const outgoing = await db.collection(GAME_REQUESTS_COLLECTION)
+            .find({ requester: userId, status: "pending" }).toArray();
+        // Normalize _id to string
+        const normalize = (arr: any[]) => arr.map(req => ({
+            ...req,
+            _id: req._id.toString(),
+            requester: req.requester?.toString?.() ?? req.requester,
+            recipient: req.recipient?.toString?.() ?? req.recipient,
+        }));
+        res.json({ incoming: normalize(incoming), outgoing: normalize(outgoing) });
+    } catch (err: any) {
+        res.status(400).json({ error: err.message });
     }
 });
 

@@ -1,8 +1,9 @@
 'use client';
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getSocket } from "@/lib/socket";
 import Link from "next/link";
+import { FaCheck, FaClock, FaFlag, FaUserMinus, FaUserPlus, FaVolumeMute, FaVolumeUp } from "react-icons/fa";
 
 function PlayerBanner({
     game, user, isMyTurn, timeLeft, formatTime, blackScore, whiteScore
@@ -46,14 +47,18 @@ function PlayerBanner({
                         <svg width="18" height="18" viewBox="0 0 24 24">
                             <circle cx="12" cy="12" r="10" fill="white" stroke="#888" strokeWidth="2" />
                         </svg>
-                        <Link href={`/profile/{whiteId}`} className="font-semibold text-white hover:underline truncate max-w-[6rem]">{whiteName}</Link>
+                        <Link href={`/profile/${whiteId}`} className="font-semibold text-white hover:underline truncate max-w-[6rem]">{whiteName}</Link>
                     </div>
                 </div>
                 {/* Scores and timer row */}
                 <div className="flex items-center justify-between w-full px-6 mt-2 text-yellow-400 font-semibold text-sm">
                     <span>Black: {blackScore}</span>
                     {typeof timeLeft === "number" && !game?.state?.isOver && (
-                        <span className="px-3 py-1 rounded font-mono text-sm bg-white text-black font-bold border border-yellow-400 mx-2">
+                        <span
+                            className={`px-3 py-1 rounded font-mono text-sm bg-white font-bold border mx-2
+                            ${timeLeft <= 10000 ? "text-red-600 border-red-400" : "text-black border-yellow-400"}
+                        `}
+                        >
                             {formatTime(timeLeft)}
                         </span>
                     )}
@@ -289,6 +294,97 @@ function MoveHistory({ game, formatMove }: { game: any; formatMove: (move: any) 
     );
 }
 
+function AddFriendButton({
+    profileId,
+    loggedInUserId,
+    token,
+    isFriend,
+    pendingRequest,
+    incomingRequest,
+    onAdd,
+    onRemove,
+    onCancel,
+    onAccept,
+    disabled,
+}: {
+    profileId: string;
+    loggedInUserId: string | null;
+    token: string | null;
+    isFriend: boolean;
+    pendingRequest: boolean;
+    incomingRequest: boolean;
+    onAdd: () => void;
+    onRemove: () => void;
+    onCancel: () => void;
+    onAccept: () => void;
+    disabled?: boolean;
+}) {
+    const [hover, setHover] = useState(false);
+
+    if (!loggedInUserId || loggedInUserId === profileId) return null;
+
+    if (isFriend) {
+        return (
+            <button
+                className="p-2 rounded-full bg-red-600 hover:bg-red-700 text-white shadow flex items-center justify-center"
+                title="Remove Friend"
+                aria-label="Remove Friend"
+                onClick={onRemove}
+                disabled={disabled}
+                style={{ width: 36, height: 36 }}
+            >
+                <FaUserMinus className="w-5 h-5" />
+            </button>
+        );
+    }
+
+    if (pendingRequest) {
+        return (
+            <button
+                className="p-2 rounded-full bg-yellow-600 hover:bg-yellow-700 text-white shadow flex items-center justify-center"
+                title={hover ? "Cancel Friend Request" : "Pending Friend Request"}
+                aria-label="Cancel Friend Request"
+                onClick={onCancel}
+                disabled={disabled}
+                style={{ width: 36, height: 36 }}
+                onMouseEnter={() => setHover(true)}
+                onMouseLeave={() => setHover(false)}
+            >
+                {hover ? <FaUserMinus className="w-5 h-5" /> : <FaClock className="w-5 h-5" />}
+            </button>
+        );
+    }
+
+    if (incomingRequest) {
+        return (
+            <button
+                className="p-2 rounded-full bg-green-600 hover:bg-green-700 text-white shadow flex items-center justify-center"
+                title="Accept Friend Request"
+                aria-label="Accept Friend Request"
+                onClick={onAccept}
+                disabled={disabled}
+                style={{ width: 36, height: 36 }}
+            >
+                <FaCheck className="w-5 h-5" />
+            </button>
+        );
+    }
+
+    // Default: Add Friend
+    return (
+        <button
+            className="p-2 rounded-full bg-[#3fae49] hover:bg-[#2e8c36] text-white shadow flex items-center justify-center"
+            title="Add Friend"
+            aria-label="Add Friend"
+            onClick={onAdd}
+            disabled={disabled}
+            style={{ width: 36, height: 36 }}
+        >
+            <FaUserPlus className="w-5 h-5" />
+        </button>
+    );
+}
+
 export default function GamePage() {
     const { gameId } = useParams();
     const [game, setGame] = useState<any>(null);
@@ -298,7 +394,7 @@ export default function GamePage() {
     const [showErrorModal, setShowErrorModal] = useState(false);
     const [eloChange, setEloChange] = useState<number | null>(null);
     const [result, setResult] = useState<"win" | "loss" | "draw" | null>(null);
-    const socket = getSocket();
+
     const router = useRouter();
     const [showForfeitConfirm, setShowForfeitConfirm] = useState(false);
     const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -306,6 +402,13 @@ export default function GamePage() {
     const [screenIsMobile, setScreenIsMobile] = useState(
         typeof window !== "undefined" ? window.innerWidth < 640 : false
     );
+    const [isFriend, setIsFriend] = useState(false);
+    const [friendLoading, setFriendLoading] = useState(false);
+    const [pendingRequest, setPendingRequest] = useState(false);
+    const [incomingRequest, setIncomingRequest] = useState(false);
+    const [cooldown, setCooldown] = useState(false);
+    const [token, setToken] = useState<string | null>(null);
+    const [loggedInUserId, setLoggedInUserId] = useState<string | null>(null);
 
     const [soundOn, setSoundOn] = useState<boolean>(() => {
         if (typeof window !== "undefined") {
@@ -314,6 +417,137 @@ export default function GamePage() {
         }
         return true;
     });
+
+    useEffect(() => {
+        setToken(localStorage.getItem("token"));
+        let loggedInId = "";
+        try {
+            const userObj = JSON.parse(localStorage.getItem("user") || "{}");
+            if (userObj && userObj.id) {
+                loggedInId = userObj.id;
+            }
+        } catch { }
+        setLoggedInUserId(loggedInId);
+    }, []);
+
+    const startCooldown = () => {
+        setCooldown(true);
+        setTimeout(() => setCooldown(false), 1500);
+    };
+
+    const refreshFriendStatus = useCallback(() => {
+        if (!game || !loggedInUserId || !token) return;
+        const opponentId = game.players?.find((id: string) => id !== loggedInUserId);
+        if (!opponentId) return;
+
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/friend/list`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+            .then(res => res.json())
+            .then(data => {
+                const friends = data.friends || [];
+                setIsFriend(friends.some((f: any) => String(f._id) === String(opponentId)));
+            });
+
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/friend/requests`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+            .then(res => res.json())
+            .then(data => {
+                const outgoing = data.outgoing || [];
+                const incoming = data.incoming || [];
+                setPendingRequest(outgoing.some((req: any) => String(req.recipient) === String(opponentId)));
+                setIncomingRequest(incoming.some((req: any) => String(req.requester) === String(opponentId)));
+            });
+    }, [game, loggedInUserId, token]);
+
+    useEffect(() => {
+        refreshFriendStatus();
+    }, [refreshFriendStatus]);
+
+    const handleAddFriend = async () => {
+        if (!token || friendLoading || cooldown || !game) return;
+        const opponentId = game.players?.find((id: string) => id !== loggedInUserId);
+        if (!opponentId) return;
+        setFriendLoading(true);
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/friend/send`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+                recipient: opponentId,
+            }),
+        });
+        setFriendLoading(false);
+        startCooldown();
+        refreshFriendStatus();
+    };
+
+    const handleCancelRequest = async () => {
+        if (!token || friendLoading || cooldown || !game) return;
+        const opponentId = game.players?.find((id: string) => id !== loggedInUserId);
+        if (!opponentId) return;
+        setFriendLoading(true);
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/friend/cancel`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+                recipient: opponentId,
+            }),
+        });
+        setFriendLoading(false);
+        startCooldown();
+        refreshFriendStatus();
+    };
+
+    const handleAcceptRequest = async () => {
+        if (!token || !game) return;
+        const opponentId = game.players?.find((id: string) => id !== loggedInUserId);
+        if (!opponentId) return;
+        setFriendLoading(true);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/friend/requests`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        const incoming = data.incoming || [];
+        const request = incoming.find((req: any) => req.requester === opponentId);
+        if (request) {
+            await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/friend/accept`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    requestId: request._id,
+                }),
+            });
+        }
+        setFriendLoading(false);
+        refreshFriendStatus();
+    };
+
+    const handleRemoveFriend = async () => {
+        if (!token || !loggedInUserId || !game) return;
+        const opponentId = game.players?.find((id: string) => id !== loggedInUserId);
+        if (!opponentId) return;
+        setFriendLoading(true);
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/friend/remove`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ userId: loggedInUserId, friendId: opponentId }),
+        });
+        setFriendLoading(false);
+        refreshFriendStatus();
+    };
 
     useEffect(() => {
         function handleResize() {
@@ -346,7 +580,7 @@ export default function GamePage() {
     }
 
     function getMoveTimeMs() {
-        return game?.timing === "short" ? 2 * 60 * 1000 : 24 * 60 * 60 * 1000; // 2 min or 24 hours
+        return game?.timing === "short" ? 30 * 1000 : 24 * 60 * 60 * 1000;
     }
 
     function Modal({ open, onClose, children }: { open: boolean, onClose: () => void, children: React.ReactNode }) {
@@ -390,7 +624,11 @@ export default function GamePage() {
     // Get user info from localStorage
     const user = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("user") || "null") : null;
     const isPlayer = user && (user.id === game?.blackPlayer || user.id === game?.whitePlayer);
-
+    if (!user?.id || !user?.username) {
+        router.push("/login");
+        return null;
+    }
+    const socket = getSocket(user.id);
     // For demonstration, default to 11x11 if no game loaded
     const boardSize = game?.state?.board?.size || 11;
     const spaces: number[] = game?.state?.board?.spaces || Array(boardSize * boardSize).fill(0);
@@ -625,10 +863,10 @@ export default function GamePage() {
                     <div className="text-2xl font-bold text-yellow-400 mb-2">Game Over</div>
                     {/* Win/Loss/Draw Text */}
                     {user && game ? (
-                        game.winner === user.id ? (
-                            <div className="text-green-400 text-lg font-semibold mb-4">You won!</div>
-                        ) : game.wasAborted ? (
+                        game.wasAborted ? (
                             <div className="text-yellow-300 text-lg font-semibold mb-4">Game Aborted</div>
+                        ) : game.winner === user.id ? (
+                            <div className="text-green-400 text-lg font-semibold mb-4">You won!</div>
                         ) : (
                             <div className="text-red-400 text-lg font-semibold mb-4">You lost...</div>
                         )
@@ -698,51 +936,62 @@ export default function GamePage() {
                             Forfeit
                         </button>
                     )}
+
                     <div className="flex flex-row gap-2 justify-center w-auto">
                         <button
                             aria-label="Toggle sound"
                             onClick={toggleSound}
-                            className="p-2 rounded-full bg-[#232323] hover:bg-[#333] transition"
+                            className={`p-2 rounded-full ${soundOn ? "bg-blue-400 hover:bg-blue-500" : "bg-blue-300 hover:bg-blue-400"} text-white shadow flex items-center justify-center transition`}
                             title={soundOn ? "Mute sounds" : "Enable sounds"}
+                            style={{ width: 36, height: 36 }}
                         >
                             {soundOn ? (
-                                <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M5 14h2l3 3V7l-3 3H5v4z" />
-                                    <path d="M15 9a3 3 0 010 6" />
-                                    <path d="M17.5 6.5a7 7 0 010 11" />
-                                </svg>
+                                <FaVolumeUp className="w-5 h-5" />
                             ) : (
-                                <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M5 14h2l3 3V7l-3 3H5v4z" />
-                                    <line x1="19" y1="5" x2="5" y2="19" stroke="red" strokeWidth="2" />
-                                </svg>
-                            )}
+                                <span className="relative inline-block w-5 h-5">
+                                    <FaVolumeUp className="w-5 h-5" />
+                                    {/* Red slash overlay */}
+                                    <svg
+                                        className="absolute left-0 top-0 w-5 h-5 pointer-events-none"
+                                        viewBox="0 0 20 20"
+                                        style={{ opacity: soundOn ? 0 : 1 }}
+                                    >
+                                        <line
+                                            x1="17"
+                                            y1="17"
+                                            x2="3"
+                                            y2="3"
+                                            stroke="red"
+                                            strokeWidth="2.5"
+                                            strokeLinecap="round"
+                                        />
+                                    </svg>
+                                </span>)}
                         </button>
-                        {/* Mockup Add Friend button */}
-                        <button
-                            aria-label="Add friend"
-                            className="p-2 rounded-full bg-[#232323] hover:bg-[#333] transition flex items-center justify-center"
-                            title="Add Friend"
-                        >
-                            <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
-                                <circle cx="11" cy="9" r="4" stroke="#fdca33" strokeWidth="2" fill="none" />
-                                <path d="M5 19c0-2.5 3-4 6-4s6 1.5 6 4" stroke="#fdca33" strokeWidth="2" />
-                                {/* Larger + sign */}
-                                <line x1="17" y1="17" x2="23" y2="17" stroke="#fdca33" strokeWidth="3" />
-                                <line x1="20" y1="14" x2="20" y2="20" stroke="#fdca33" strokeWidth="3" />
-                            </svg>
-                        </button>
-                        <button
-                            aria-label="Report player"
-                            className="p-2 rounded-full bg-[#232323] hover:bg-[#333] transition flex items-center justify-center"
-                            title="Report Player"
-                        >
-                            <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M11 3L2 21h20L13 3z" stroke="#f87171" strokeWidth="2" fill="none" />
-                                <circle cx="12" cy="17" r="1.2" fill="#f87171" />
-                                <rect x="11" y="9" width="2" height="5" rx="1" fill="#f87171" />
-                            </svg>
-                        </button>
+                        {isPlayer && (<>
+                            <AddFriendButton
+                                profileId={game?.players?.find((id: string) => id !== loggedInUserId) || ""}
+                                loggedInUserId={loggedInUserId}
+                                token={token}
+                                isFriend={isFriend}
+                                pendingRequest={pendingRequest}
+                                incomingRequest={incomingRequest}
+                                onAdd={handleAddFriend}
+                                onRemove={handleRemoveFriend}
+                                onCancel={handleCancelRequest}
+                                onAccept={handleAcceptRequest}
+                                disabled={friendLoading || cooldown}
+                            />
+                            <button
+                                aria-label="Report player"
+                                className="p-2 rounded-full bg-red-500 hover:bg-red-700 text-white shadow flex items-center justify-center"
+                                title="Report Player"
+                                style={{ width: 36, height: 36 }}
+                            >
+                                <FaFlag className="w-5 h-5" />
+                            </button>
+                        </>
+                        )}
                     </div>
                 </div>
                 {/* Middle column: Move History */}

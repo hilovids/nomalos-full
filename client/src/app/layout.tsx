@@ -1,11 +1,21 @@
+"use client";
 import './globals.css';
 import NavBar from '../../components/navBar';
 import RequireAuth from '../../components/requireAuth';
 import Footer from '../../components/footer';
 import ScrollToTopButton from '../../components/scrollButton';
 import NotificationBanner from '../../components/notificationBanner';
+import { useEffect } from 'react';
+import { initSocket } from '@/lib/socket';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    if (user?.id) {
+      initSocket(user.id);
+    }
+  }, []);
+
   return (
     <html lang="en">
       <head>

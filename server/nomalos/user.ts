@@ -19,6 +19,8 @@ export type User = {
     };
     shortRatingHistory?: EloEntry[];
     longRatingHistory?: EloEntry[];
+    allowFriendRequests?: boolean;
+    allowGameRequests?: boolean;
 };
 
 export type EloEntry = {

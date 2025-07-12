@@ -4,6 +4,8 @@ import Card from "../../components/card";
 
 export default function Home() {
   const [user, setUser] = useState<any>(null);
+  const [showOnlineCount, setShowOnlineCount] = useState(false);
+
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -11,6 +13,10 @@ export default function Home() {
     if (token && userData) {
       setUser(JSON.parse(userData));
     }
+  }, []);
+
+  useEffect(() => {
+    setShowOnlineCount(true);
   }, []);
 
   function OnlineCount() {
@@ -53,14 +59,22 @@ export default function Home() {
           className="text-s text-gray-400 mb-6"
           style={{ marginTop: "-32px" }}
         >
-          {typeof window !== "undefined" && (
-            <OnlineCount />
-          )}
+          {showOnlineCount && <OnlineCount />}
         </div>
         <Card className="w-full mt-0 mb-8">
           <h2 className="text-xl font-semibold mb-2 text-white">What is Nomalos?</h2>
           <p className="text-gray-200 mb-2">
             <span className="font-bold text-yellow-400">Nomalos</span> is an abstract strategy game for two players involving the placement of pieces on a board. In Nomalos, players maximize their territory through the construction of similarly colored islands containing odd numbers of pieces. The core rules of Nomalos and this web app were designed by <span className="font-bold text-yellow-400">Davis Murphy</span>.
+            <div className="mt-6 flex gap-4">
+              <a
+                href="https://forms.gle/aMpdxxakQ2x9svvd7"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-[#232323] text-blue-400 hover:text-white px-4 py-2 rounded font-semibold transition-colors"
+              >
+                Found a Bug?
+              </a>
+            </div>
           </p>
         </Card>
         <Card className="w-full mb-8">
@@ -78,10 +92,10 @@ export default function Home() {
         <Card className="w-full mb-24">
           <h2 className="text-xl font-semibold mb-2 text-white">Planned Features</h2>
           <ol className="list-decimal list-inside text-gray-200 mb-2">
-            <li>Improved mobile design</li>
+            <li>Improved matchmaking</li>
+            <li>Improved page designs and animations</li>
             <li>Vs. Computer matches</li>
-            <li>Friend lists and custom games</li>
-            <li>Animations and more...</li>
+            <li>Public API</li>
             <li>In-game chat</li>
             <li>ELO graph over time</li>
           </ol>

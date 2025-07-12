@@ -5,6 +5,9 @@ import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import gameRouter from "./api/game";
 import userRouter from "./api/user";
+import friendRouter from "./api/friend";
+import requestRouter from "./api/request";
+import gameRequestRouter from "./api/gameRequest";
 import { connectToMongo } from "./database/mongodb";
 import http from "http";
 import { Server as SocketIOServer } from "socket.io";
@@ -17,6 +20,7 @@ import cron from "node-cron";
 dotenv.config();
 
 const app = express();
+app.use(express.json());
 const server = http.createServer(app);
 export const io = new SocketIOServer(server, {
     cors: {
@@ -24,6 +28,8 @@ export const io = new SocketIOServer(server, {
         credentials: true
     }
 });
+
+export const userSocketMap = new Map<string, string>();
 
 // Logging middleware
 app.use((req, res, next) => {
@@ -37,19 +43,22 @@ app.use(cors({
     origin: process.env.CORS_ORIGIN?.split("|") || ["http://localhost:3000"],
     credentials: true
 }));
-app.use(rateLimit({
-    windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-    max: Number(process.env.RATE_LIMIT_MAX) || 100,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: "Too many requests, please try again later."
-}));
+// app.use(rateLimit({
+//     windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+//     max: Number(process.env.RATE_LIMIT_MAX) || 100,
+//     standardHeaders: true,
+//     legacyHeaders: false,
+//     message: "Too many requests, please try again later."
+// }));
 app.use(express.json());
 
 // Connect to MongoDB before starting the server
 connectToMongo().then(() => {
     app.use("/api/game", gameRouter);
     app.use("/api/user", userRouter);
+    app.use("/api/friend", friendRouter);
+    app.use("/api/request", requestRouter);
+    app.use("/api/game-request", gameRequestRouter);
 
     const matchmakingQueue: any[] = [];
 
@@ -57,14 +66,29 @@ connectToMongo().then(() => {
     io.on("connection", (socket) => {
         console.log(`[SOCKET] Connected: ${socket.id}`);
 
-        function emitOnlineCount() {
-            io.emit("online_count", io.engine.clientsCount);
+        function updateActivity() {
+            (socket as any).lastActivity = Date.now();
         }
 
-        emitOnlineCount();
+        io.emit("online_count", io.engine.clientsCount);
+
 
         socket.on("disconnect", () => {
-            emitOnlineCount();
+            io.emit("online_count", io.engine.clientsCount);
+        });
+
+        socket.on("register", ({ userId }) => {
+            const oldSocketId = userSocketMap.get(userId);
+            if (oldSocketId && oldSocketId !== socket.id) {
+                const oldSocket = io.sockets.sockets.get(oldSocketId);
+                if (oldSocket) {
+                    oldSocket.disconnect(true);
+                    console.log(`[SOCKET] Disconnected previous socket for user ${userId}: ${oldSocketId}`);
+                }
+            }
+            userSocketMap.set(userId, socket.id);
+            (socket as any).userId = userId;
+            console.log(`[SOCKET] Registered user ${userId} to socket ${socket.id}`);
         });
 
         socket.on("find_match", async ({ userId, username, rating, timing, size, rated }) => {
@@ -114,9 +138,6 @@ connectToMongo().then(() => {
             }
         });
 
-        function updateActivity() {
-            (socket as any).lastActivity = Date.now();
-        }
         (socket as any).lastActivity = Date.now();
         socket.onAny(() => updateActivity());
 
@@ -125,6 +146,28 @@ connectToMongo().then(() => {
             if (idx !== -1) {
                 const removed = matchmakingQueue.splice(idx, 1)[0];
                 console.log(`[SOCKET] cancel_matchmaking: Removed ${removed.username} (${socket.id}) from queue`);
+            }
+        });
+
+        socket.on("self_ui_update", ({ userId }) => {
+            // Find the socket for this user
+            const socketId = userSocketMap.get(userId);
+            if (socketId) {
+                // Emit both status updates in case either is needed
+                io.to(socketId).emit("friend_status_update");
+                io.to(socketId).emit("game_status_update");
+            }
+        });
+
+        socket.on("game_request_accepted", (data) => {
+            // data should include the recipient's userId (the original requester)
+            const { recipientUserId, gameId } = data;
+            const recipientSocketId = userSocketMap.get(recipientUserId);
+            console.log(`[SOCKET] game_request_accepted: ${socket.id} accepted request for gameId=${gameId} from ${recipientUserId}`);
+            if (recipientSocketId) {
+                io.to(recipientSocketId).emit("game_request_accepted", {
+                    gameId
+                });
             }
         });
 
@@ -199,20 +242,6 @@ connectToMongo().then(() => {
 
     app.use("/api/health", createHealthRouter(io, matchmakingQueue));
 
-    // Periodic cleanup for idle sockets
-    const IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
-    setInterval(() => {
-        const now = Date.now();
-        for (const socket of io.sockets.sockets.values()) {
-            const lastActivity = (socket as any).lastActivity || 0;
-            const inMatchmaking = matchmakingQueue.some(q => q.socketId === socket.id);
-            const inGame = Array.from(socket.rooms).some(room => room !== socket.id && room.startsWith("game_"));
-            if (!inMatchmaking && !inGame && now - lastActivity > IDLE_TIMEOUT_MS) {
-                console.log(`[CLEANUP] Disconnecting idle socket: ${socket.id}`);
-                socket.disconnect(true);
-            }
-        }
-    }, 60 * 1000); // Check every minute
 
     const PORT = process.env.PORT || 5000;
     server.listen(PORT, () => {
@@ -225,7 +254,7 @@ connectToMongo().then(() => {
         const games = await GameRepo.getActiveGames(); // Implement this to return games where !state.isOver
         for (const game of games) {
             const isShort = game.timing === "short";
-            const msLimit = isShort ? 2 * 60 * 1000 : 24 * 60 * 60 * 1000; // 2 min or 24 hours
+            const msLimit = isShort ? 30 * 1000 : 24 * 60 * 60 * 1000; // 30 sec or 24 hours
             const lastMove = new Date(game.updatedAt || game.createdAt);
             if (now.getTime() - lastMove.getTime() > msLimit) {
                 console.log(`[CRON] Forfeiting game ${game.id} due to inactivity`);
