@@ -6,6 +6,9 @@ import { sanitizeUser } from "../api/user";
 
 const COLLECTION = "Users";
 
+const FOUNDER_CUTOFF = new Date("2025-08-01T00:00:00Z");
+
+
 // Create a new user
 export async function createUser(user: Omit<User, "id">): Promise<ObjectId> {
     const db = getDb();
@@ -15,6 +18,15 @@ export async function createUser(user: Omit<User, "id">): Promise<ObjectId> {
         createdAt: now,
         updatedAt: now,
     } as any); // 'as any' to allow extra fields for timestamps
+
+    if (now < FOUNDER_CUTOFF) {
+        // Optionally, update the Founder badge's awardedTo array:
+        await db.collection("Badges").updateOne(
+            { id: "founder" },
+            { $addToSet: { awardedTo: result.insertedId } }
+        );
+    }
+
     return result.insertedId;
 }
 

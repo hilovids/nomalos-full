@@ -177,19 +177,19 @@ export default function NavBar() {
           <span className={`block w-6 h-0.5 bg-gray-200 transition-all ${menuOpen ? "-rotate-45 -translate-y-1.5" : ""}`}></span>
         </button>
       )}
-      <div className="hidden sm:flex items-center gap-3 sm:gap-4 text-sm sm:text-base">
+      <div className="hidden sm:flex items-center gap-4 text-sm sm:text-base">
         {user ? (
           <>
-            <Link href="/new-game" className="text-[#e0e7ef] hover:text-white font-medium transition-colors">
+            <Link href="/new-game" className="text-[#e0e7ef] hover:text-white font-medium transition-colors px-2 py-1 rounded">
               New Game
             </Link>
-            <Link href="/find-game" className="text-[#e0e7ef] hover:text-white font-medium transition-colors">
+            <Link href="/find-game" className="text-[#e0e7ef] hover:text-white font-medium transition-colors px-2 py-1 rounded">
               Find Game
             </Link>
-            <Link href="/leaderboard" className="text-[#e0e7ef] hover:text-white font-medium transition-colors">
+            <Link href="/leaderboard" className="text-[#e0e7ef] hover:text-white font-medium transition-colors px-2 py-1 rounded">
               Leaderboard
             </Link>
-            <Link href="/inbox" className="relative text-[#e0e7ef] hover:text-white font-medium transition-colors">
+            <Link href="/inbox" className="relative text-[#e0e7ef] hover:text-white font-medium transition-colors px-2 py-1 rounded">
               Inbox
               {inboxAlert && (
                 <span className="absolute -top-1 -right-3 bg-red-600 text-white rounded-full px-1.5 text-xs font-bold">
@@ -197,10 +197,10 @@ export default function NavBar() {
                 </span>
               )}
             </Link>
-            <Link href="/profile" className="text-[#e0e7ef] hover:text-white font-medium transition-colors">
+            <Link href="/profile" className="text-[#e0e7ef] hover:text-white font-medium transition-colors px-2 py-1 rounded">
               Profile
             </Link>
-            <span className="font-medium text-gray-500 ml-2">Hello, {user.username}</span>
+            <span className="font-medium text-gray-500 ml-2 px-2 py-1 rounded">Hello, {user.username}</span>
             <button
               className="ml-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded transition-colors font-semibold text-xs sm:text-sm"
               onClick={handleLogout}

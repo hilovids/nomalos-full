@@ -167,7 +167,7 @@ export function InProgressGames({
     if (!games.length) return null;
     return (
         <section className="mb-6">
-            <h2 className="text-2xl font-bold text-white mb-3">In Progress</h2>
+            <h2 className="text-2xl font-bold mb-6 text-white text-center">In Progress</h2>      
             <div className="overflow-x-auto rounded-lg shadow">
                 <table className="min-w-full bg-[#181818] rounded-lg text-[10px] sm:text-sm">
                     <thead>
@@ -261,6 +261,7 @@ export function ProfileGameTable({
         <div>
             {/* Always show a table, but smaller on mobile */}
             <div className="overflow-x-auto rounded-lg shadow">
+                <h2 className="text-2xl font-bold mb-6 text-white text-center">Game History</h2>      
                 <table className="min-w-full bg-[#181818] rounded-lg text-[10px] sm:text-sm">
                     <thead>
                         <tr className="text-gray-300 border-b border-[#333]">

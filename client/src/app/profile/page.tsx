@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ProfileStats, ProfileGameTable, InProgressGames } from "../../../components/profileView";
+import { BadgesBox } from "../../../components/badgesBox";
 import { FaUserFriends } from "react-icons/fa";
 
 function Modal({ open, onClose, children }: { open: boolean, onClose: () => void, children: React.ReactNode }) {
@@ -231,11 +232,13 @@ export default function ProfilePage() {
         onDelete={() => setShowDeleteModal(true)}
         showDelete
       />
+      <BadgesBox
+        userId={user.id}
+      />
       <InProgressGames
         games={inProgressGames}
         userId={user.id}
       />
-      <h2 className="text-2xl font-bold mb-6 text-white">Game History</h2>
       {error && <div className="text-red-400 mb-4">{error}</div>}
       {!loading && finishedGames.length === 0 && <div className="text-gray-400">No finished games found.</div>}
       <ProfileGameTable
@@ -246,7 +249,23 @@ export default function ProfilePage() {
       />
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-2 mt-6">
-          {/* ...pagination... */}
+          <button
+            className="px-3 py-1 rounded bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-semibold transition disabled:opacity-50"
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            Prev
+          </button>
+          <span className="text-gray-300 font-mono">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            className="px-3 py-1 rounded bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-semibold transition disabled:opacity-50"
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
         </div>
       )}
       <div style={{ height: "80px" }} />

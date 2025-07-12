@@ -7,6 +7,7 @@ import gameRouter from "./api/game";
 import userRouter from "./api/user";
 import friendRouter from "./api/friend";
 import requestRouter from "./api/request";
+import badgeRouter from "./api/badge";
 import gameRequestRouter from "./api/gameRequest";
 import { connectToMongo } from "./database/mongodb";
 import http from "http";
@@ -15,6 +16,7 @@ import * as GameRepo from "./database/games";
 import createHealthRouter from "./api/health";
 import GameService from "./nomalos/gameService";
 import cron from "node-cron";
+import { clearStaleGameRequests } from "./database/gameRequests";
 
 
 dotenv.config();
@@ -59,6 +61,7 @@ connectToMongo().then(() => {
     app.use("/api/friend", friendRouter);
     app.use("/api/request", requestRouter);
     app.use("/api/game-request", gameRequestRouter);
+    app.use("/api/badge", badgeRouter);
 
     const matchmakingQueue: any[] = [];
 
@@ -278,6 +281,11 @@ connectToMongo().then(() => {
                 });
             }
         }
+    });
+
+    cron.schedule("*/10 * * * *", async () => {
+        await clearStaleGameRequests(10);
+        console.log("[CRON] Cleared stale game requests older than 10 minutes");
     });
 }).catch((err) => {
     console.error("Failed to connect to MongoDB:", err);

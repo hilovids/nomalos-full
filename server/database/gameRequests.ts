@@ -41,12 +41,10 @@ export async function createGameRequest(data: {
 // Create a new game request
 export async function acceptGameRequest(request: GameRequest) {
     const db = getDb();
-    console.log("acceptGameRequest", request);
     const [requesterUser, recipientUser] = await Promise.all([
         await getUserById(request.requester),
         await getUserById(request.recipient)
     ]);
-    console.log(["acceptGameRequest", request, requesterUser, recipientUser]);
     if (!requesterUser || !recipientUser) throw new Error("Requester or recipient user not found");
 
     // Prepare ratings array based on fetched users

@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ProfileStats, ProfileGameTable, InProgressGames } from "../../../../components/profileView";
 import { FaUserPlus, FaUserMinus, FaClock, FaCheck } from "react-icons/fa";
 import { getSocket } from "@/lib/socket";
+import { BadgesBox } from "../../../../components/badgesBox";
 
 
 function AddFriendButton({
@@ -367,7 +368,7 @@ export default function ProfileIdPage() {
         games={inProgressGames}
         userId={loggedInUserId ? loggedInUserId : ""}
       />
-      <h2 className="text-2xl font-bold mb-6 text-white">Game History</h2>
+      <BadgesBox userId={profileId} />
       {error && <div className="text-red-400 mb-4">{error}</div>}
       {!loading && finishedGames.length === 0 && <div className="text-gray-400">No finished games found.</div>}
       <ProfileGameTable
