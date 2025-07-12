@@ -186,6 +186,9 @@ export default function NavBar() {
             <Link href="/find-game" className="text-[#e0e7ef] hover:text-white font-medium transition-colors px-2 py-1 rounded">
               Find Game
             </Link>
+            <Link href="/tournaments" className="text-[#e0e7ef] hover:text-white font-medium transition-colors px-2 py-1 rounded">
+              Tournaments
+            </Link>
             <Link href="/leaderboard" className="text-[#e0e7ef] hover:text-white font-medium transition-colors px-2 py-1 rounded">
               Leaderboard
             </Link>
@@ -235,8 +238,11 @@ export default function NavBar() {
                 <Link href="/find-game" className="w-full py-2 text-[#e0e7ef] hover:text-white font-medium transition-colors" onClick={() => setMenuOpen(false)}>
                   Find Game
                 </Link>
+                <Link href="/tournaments" className="w-full py-2 text-[#e0e7ef] hover:text-white font-medium transition-colors" onClick={() => setMenuOpen(false)}>
+                  Tournaments
+                </Link>
                 <Link href="/leaderboard" className="w-full py-2 text-[#e0e7ef] hover:text-white font-medium transition-colors" onClick={() => setMenuOpen(false)}>
-                  Leaderboard
+                  Ratings
                 </Link>
                 <Link href="/inbox" className="relative">
                   Inbox

@@ -8,6 +8,7 @@ import userRouter from "./api/user";
 import friendRouter from "./api/friend";
 import requestRouter from "./api/request";
 import badgeRouter from "./api/badge";
+import tournamentRouter from "./api/tournament";
 import gameRequestRouter from "./api/gameRequest";
 import { connectToMongo } from "./database/mongodb";
 import http from "http";
@@ -62,6 +63,7 @@ connectToMongo().then(() => {
     app.use("/api/request", requestRouter);
     app.use("/api/game-request", gameRequestRouter);
     app.use("/api/badge", badgeRouter);
+    app.use("/api/tournament", tournamentRouter);
 
     const matchmakingQueue: any[] = [];
 
