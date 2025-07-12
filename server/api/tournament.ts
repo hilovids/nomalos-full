@@ -4,6 +4,8 @@ import { authenticateJWT } from "../middleware/jwt";
 import { Tournament } from "../nomalos/tournament";
 import { Match } from "../nomalos/match";
 import { Badge } from "../nomalos/badge";
+import { ObjectId } from "mongodb";
+import { io } from "..";
 
 const router = Router();
 
@@ -17,7 +19,7 @@ router.get("/", async (req: Request, res: Response) => {
 // Get a tournament by ID
 router.get("/:id", async (req: Request, res: Response) => {
     const db = getDb();
-    const tournament = await db.collection<Tournament>("Tournaments").findOne({ id: req.params.id });
+    const tournament = await db.collection<Tournament>("Tournaments").findOne({ _id: new ObjectId(req.params.id) });
     if (!tournament) {
         res.status(404).json({ error: "Tournament not found" });
         return;
@@ -29,7 +31,7 @@ router.get("/:id", async (req: Request, res: Response) => {
 router.post("/:id/join", authenticateJWT, async (req: Request, res: Response) => {
     const db = getDb();
     const userId = (req as any).user?.id;
-    const tournament = await db.collection<Tournament>("Tournaments").findOne({ id: req.params.id });
+    const tournament = await db.collection<Tournament>("Tournaments").findOne({ _id: new ObjectId(req.params.id) });
     if (!tournament) {
         res.status(404).json({ error: "Tournament not found" });
         return;
@@ -39,9 +41,39 @@ router.post("/:id/join", authenticateJWT, async (req: Request, res: Response) =>
         return;
     }
     await db.collection<Tournament>("Tournaments").updateOne(
-        { id: req.params.id },
+        { _id: new ObjectId(req.params.id) },
         { $addToSet: { participants: userId } }
     );
+    const updatedTournament = await db.collection<Tournament>("Tournaments").findOne({ _id: new ObjectId(req.params.id) });
+    io.emit("tournament_participants_update", {
+        tournamentId: req.params.id,
+        participants: updatedTournament?.participants || []
+    });
+    res.json({ success: true });
+});
+
+router.post("/:id/leave", authenticateJWT, async (req: Request, res: Response) => {
+    const db = getDb();
+    const userId = (req as any).user?.id;
+    const tournament = await db.collection<Tournament>("Tournaments").findOne({ _id: new ObjectId(req.params.id) });
+    if (!tournament) {
+        res.status(404).json({ error: "Tournament not found" });
+        return;
+    }
+    if (!tournament.participants.includes(userId)) {
+        res.status(409).json({ error: "Not a participant" });
+        return;
+    }
+    await db.collection<Tournament>("Tournaments").updateOne(
+        { _id: new ObjectId(req.params.id) },
+        { $pull: { participants: userId } }
+    );
+    // Fetch updated participants array after update
+    const updatedTournament = await db.collection<Tournament>("Tournaments").findOne({ _id: new ObjectId(req.params.id) });
+    io.emit("tournament_participants_update", {
+        tournamentId: req.params.id,
+        participants: updatedTournament?.participants || []
+    });
     res.json({ success: true });
 });
 
@@ -67,10 +99,24 @@ router.post("/:id/report", authenticateJWT, async (req: Request, res: Response) 
     res.json({ success: true });
 });
 
+router.get("/:id/participants", async (req: Request, res: Response) => {
+    const db = getDb();
+    const tournament = await db.collection<Tournament>("Tournaments").findOne({ _id: new ObjectId(req.params.id) });
+    if (!tournament) {
+        res.status(404).json({ error: "Tournament not found" });
+        return;
+    }
+    const users = await db.collection("Users")
+        .find({ _id: { $in: tournament.participants.map(id => new ObjectId(id)) } })
+        .project({ id: 1, username: 1, shortRating: 1, longRating: 1 })
+        .toArray();
+    res.json({ users });
+});
+
 // Award badges for tournament results
 router.post("/:id/award-badges", authenticateJWT, async (req: Request, res: Response) => {
     const db = getDb();
-    const tournament = await db.collection<Tournament>("Tournaments").findOne({ id: req.params.id });
+    const tournament = await db.collection<Tournament>("Tournaments").findOne({ _id: new ObjectId(req.params.id) });
     if (!tournament) {
         res.status(404).json({ error: "Tournament not found" });
         return;

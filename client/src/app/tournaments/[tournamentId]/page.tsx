@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Card from "../../../../components/card";
+import { getSocket } from "../../../lib/socket";
 
 type Tournament = {
   id: string;
@@ -18,6 +19,7 @@ type Tournament = {
   secondBadge: string | null;
   participantBadge: string | null;
   status: "upcoming" | "active" | "finished";
+  timing?: "short" | "long";
 };
 
 type Match = {
@@ -37,6 +39,57 @@ export default function TournamentPage() {
   const [error, setError] = useState("");
   const [user, setUser] = useState<any>(null);
   const [joining, setJoining] = useState(false);
+  const [participantUsers, setParticipantUsers] = useState<any[]>([]);
+  const [socket, setSocket] = useState<any>(null);
+
+  useEffect(() => {
+    if (user?.id && !socket) {
+      setSocket(getSocket(user.id));
+    }
+  }, [user, socket]);
+
+  useEffect(() => {
+    if (!socket) return;
+    socket.on("tournament_participants_update", (data: { tournamentId: string; participants: any[] }) => {
+      if (data.tournamentId === tournamentId) {
+        // Refetch participants list
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournament/${tournamentId}/participants`)
+          .then(res => res.json())
+          .then(data => {
+            setParticipantUsers(
+              (data.users || []).sort((a: { shortRating: any; longRating: any; }, b: { shortRating: any; longRating: any; }) =>
+              (tournament?.timing === "short"
+                ? (b.shortRating ?? 0) - (a.shortRating ?? 0)
+                : (b.longRating ?? 0) - (a.longRating ?? 0)
+              )
+              )
+            );
+          });
+        // Also update tournament participants array
+        setTournament(prev => prev ? { ...prev, participants: data.participants } : prev);
+      }
+    });
+    return () => {
+      socket.off("tournament_participants_update");
+    };
+  }, [socket, tournamentId, tournament]);
+
+  useEffect(() => {
+    if (!tournament) return;
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournament/${tournamentId}/participants`)
+      .then(res => res.json())
+      .then(data => {
+        // Sort by shortRating if timing is "short", otherwise by longRating
+        setParticipantUsers(
+          (data.users || []).sort((a: { shortRating: any; longRating: any; }, b: { shortRating: any; longRating: any; }) =>
+          (tournament.timing === "short"
+            ? (b.shortRating ?? 0) - (a.shortRating ?? 0)
+            : (b.longRating ?? 0) - (a.longRating ?? 0)
+          )
+          )
+        );
+      });
+  }, [tournament, tournamentId]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -145,27 +198,72 @@ export default function TournamentPage() {
   }
 
   async function handleLeave() {
-    // Implement leave logic if you have an endpoint for leaving
-    setError("Leaving tournaments is not yet implemented.");
+    setJoining(true);
+    setError("");
+    try {
+      const token = localStorage.getItem("token") || "";
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tournament/${tournamentId}/leave`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTournament(prev =>
+          prev
+            ? { ...prev, participants: prev.participants.filter((id: string) => id !== user.id) }
+            : prev
+        );
+      } else {
+        setError(data.error || "Failed to leave tournament.");
+      }
+    } catch {
+      setError("Failed to leave tournament.");
+    }
+    setJoining(false);
   }
 
   return (
-    <Card className="max-w-3xl mx-auto mt-10 p-8">
+    <Card className="max-w-3xl mx-auto mt-10 px-6 mb-20">
       <h1 className="text-3xl font-bold text-yellow-400 mb-2 text-center">{tournament.name}</h1>
       <p className="text-gray-300 text-center mb-4">{tournament.description}</p>
-      <div className="flex flex-col sm:flex-row justify-center gap-6 mb-6">
+      <hr className="border-gray-600 mb-4" />
+      <div className="flex flex-col sm:flex-col justify-center gap-6 mb-6 items-center justify-center">
         <div>
-          <span className="font-semibold text-gray-400">Registration:</span>{" "}
-          <span className="text-white">{registrationTime.toLocaleString()}</span>
+          <span className="font-semibold text-gray-400">Registration Opens:</span>{" "}
+          <span className="text-white">{registrationTime.toLocaleString(undefined, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit"
+          })}</span>
         </div>
         <div>
-          <span className="font-semibold text-gray-400">Start:</span>{" "}
-          <span className="text-white">{startTime.toLocaleString()}</span>
+          <span className="font-semibold text-gray-400">Tournament Starts:</span>{" "}
+          <span className="text-white">{startTime.toLocaleString(undefined, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit"
+          })}</span>
         </div>
         {endTime && (
           <div>
-            <span className="font-semibold text-gray-400">End:</span>{" "}
-            <span className="text-white">{endTime.toLocaleString()}</span>
+            <span className="font-semibold text-gray-400">Tournament Ends:</span>{" "}
+            <span className="text-white">{endTime.toLocaleString(undefined, {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit"
+            })}</span>
+          </div>
+        )}
+        {tournament.timing && (
+          <div>
+            <span className="font-semibold text-gray-400">Tournament Format:</span>{" "}
+            <span className="text-white">{tournament.timing === "short" ? "⚡ Short" : "📆 Long"}</span>
           </div>
         )}
         <div>
@@ -199,17 +297,56 @@ export default function TournamentPage() {
 
       {/* Participants */}
       <div className="mb-8">
-        <h2 className="text-xl font-bold text-white mb-2">Participants ({tournament.participants.length})</h2>
-        <div className="flex flex-wrap gap-2">
-          {tournament.participants.length === 0 ? (
-            <span className="text-gray-400">No participants yet.</span>
-          ) : (
-            tournament.participants.map(pid => (
-              <span key={pid} className="bg-[#232323] text-yellow-400 px-3 py-1 rounded font-mono text-sm">
-                {pid}
-              </span>
-            ))
-          )}
+        <h2 className="text-xl font-bold text-white mb-2">
+          Participants ({participantUsers.length})
+        </h2>
+        <div
+          className={`flex flex-col gap-1 bg-[#232323] rounded-lg p-2 shadow-inner max-h-64 overflow-y-auto`}
+          style={{ scrollbarGutter: "stable" }}
+        >
+          <table className="min-w-full mb-4">
+            <thead>
+              <tr className="text-gray-300 border-b border-[#333]">
+                <th className="py-2 px-3 font-semibold text-left">Player Name</th>
+                <th className="py-2 px-3 font-semibold text-right">ELO</th>
+              </tr>
+            </thead>
+            <tbody>
+              {participantUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={2} className="text-gray-400 py-2 text-center">
+                    No participants yet.
+                  </td>
+                </tr>
+              ) : (
+                participantUsers.map(u => (
+                  <tr key={u._id} className="border-b border-[#333]">
+                    <td className="py-2 px-3 font-mono text-sm flex items-center gap-2">
+                      <Link
+                        href={`/profile/${u._id}`}
+                        className={
+                          u._id === user?.id
+                            ? "font-bold text-white hover:underline"
+                            : "text-yellow-400 hover:underline"
+                        }
+                        title={`View ${u.username}'s profile`}
+                      >
+                        {u.username}
+                      </Link>
+                      {u._id === user?.id && (
+                        <span className="inline-block bg-yellow-400 text-black px-2 py-1 rounded font-bold text-xs mr-2">
+                          You
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2 px-3 text-blue-400 font-bold text-sm text-right">
+                      {tournament.timing === "short" ? u.shortRating : u.longRating}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 

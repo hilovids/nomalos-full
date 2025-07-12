@@ -24,6 +24,7 @@
     "mongodb": "^6.17.0",
     "node-cron": "^4.2.0",
     "socket.io": "^4.8.1",
+    "tournament-pairings": "^2.0.0",
     "uuid": "^11.1.0"
   },
   "devDependencies": {

@@ -5,7 +5,7 @@ export class Match {
   player1: string; // user ID
   player2: string; // user ID
   gameId: string | null;
-  result: "pending" | "player1" | "player2" | "draw" | "forfeit";
+  result: "pending" | "player1" | "player2" | "forfeit";
 
   constructor(params: {
     id: string;
@@ -14,7 +14,7 @@ export class Match {
     player1: string;
     player2: string;
     gameId?: string | null;
-    result?: "pending" | "player1" | "player2" | "draw" | "forfeit";
+    result?: "pending" | "player1" | "player2" | "forfeit";
   }) {
     this.id = params.id;
     this.tournamentId = params.tournamentId;
