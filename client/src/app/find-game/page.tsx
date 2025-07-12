@@ -9,13 +9,22 @@ export default function FindGamePage() {
     const [error, setError] = useState("");
     const [timing, setTiming] = useState<"short" | "long">("short");
     const [rated, setRated] = useState(true);
+    const [user, setUser] = useState<any>(null);
+    const [socket, setSocket] = useState<any>(null);
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            setUser(JSON.parse(localStorage.getItem("user") || "{}"));
+        }
+    }, []);
+
+    useEffect(() => {
+        if (user?.id) {
+            setSocket(getSocket(user.id));
+        }
+    }, [user]);
+
     const router = useRouter();
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    if (!user?.id || !user?.username) {
-        router.push("/login");
-        return null;
-    }
-    const socket = getSocket(user.id);
 
     useEffect(() => {
         if (status === "waiting") {
@@ -26,9 +35,10 @@ export default function FindGamePage() {
     }, [status]);
 
     useEffect(() => {
+        if (!socket) return; // <-- Only run if socket is set
         setError("");
         socket.on("waiting_for_match", () => setStatus("waiting"));
-        socket.on("match_found", (data) => {
+        socket.on("match_found", (data: { gameId: any; }) => {
             setStatus("matched");
             router.push(`/game/${data.gameId}`);
         });
