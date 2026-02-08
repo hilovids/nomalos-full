@@ -13,7 +13,7 @@ const client = new MongoClient(uri);
 
 let db: Db | null = null;
 
-export async function connectToMongo(dbName: string = "NomalosGameData"): Promise<Db> {
+export async function connectToMongo(dbName: string = "nomalosSiteData"): Promise<Db> {
     if (!db) {
         await client.connect();
         db = client.db(dbName);
